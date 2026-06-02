@@ -1,2 +1,2 @@
 "use client";
-export { default } from "./roadmaps";
+export { default } from "./catalogo/page";

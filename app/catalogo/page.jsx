@@ -7,7 +7,7 @@ import { useState } from 'react';
    FOTOS: campo "img" de cada módulo. Hero: ver HeroPhoto abajo.
    ============================================================ */
 const ANUAL_FACTOR = 10; // meses cobrados al año (12 - 2 gratis)
-const DESCUENTO_PACK = 0.15; // 20% de descuento al elegir TODOS los módulos. Cambia aquí el %.
+const DESCUENTO_PACK = 0.20; // 20% de descuento al elegir TODOS los módulos. Cambia aquí el %.
 
 const MODULOS = [
   {
@@ -21,6 +21,19 @@ const MODULOS = [
       demo: 'ticket',
       ext: 'Cada ticket se firma y se encadena con el anterior mediante un hash SHA-256, generando una huella inalterable y un QR verificable por la AEAT. Cumples con la normativa antifraude sin cambiar tu forma de trabajar.',
       benes: ['Tickets legalmente verificables ante inspección', 'Encadenamiento inalterable de toda la facturación', 'Importación automática desde tu TPV vía CSV', 'Preparado para el vencimiento de la normativa en 2027'],
+    },
+  },
+  {
+    id: 'facturacion', icono: '📄', iconClass: 'fiscal', tag: 'Ampliación', tagClass: 'addon', requiere: 'verifactu',
+    img: 'https://images.pexels.com/photos/6694535/pexels-photo-6694535.jpeg?auto=compress&cs=tinysrgb&w=800',
+    titulo: 'Facturación Pro',
+    desc: 'Ampliación de VeriFactu (requiere el módulo base). Presupuestos, proformas, anticipos para eventos y conversión en un clic a factura legal.',
+    feats: ['Presupuestos y proformas', 'Anticipos / señales', 'Conversión en 1 clic', 'Requiere VeriFactu'],
+    precioMes: 19,
+    detalle: {
+      demo: 'factura',
+      ext: 'Crea estimados, presupuestos y proformas (sin valor fiscal, editables) y conviértelos en factura legal en un clic, reaprovechando todos los datos. Ideal para catering, eventos, bodas y clientes de empresa. La factura solo se vuelve fiscal (número, QR y registro AEAT) al confirmarla.',
+      benes: ['Presupuestos y proformas con tu marca, sin valor fiscal hasta confirmar', 'Factura de anticipo para cobrar la señal de un evento', 'Conversión presupuesto → factura sin volver a teclear nada', 'Seguimiento del estado: enviado, aceptado, facturado'],
     },
   },
   {
@@ -181,12 +194,33 @@ function AlertasDemo() {
   );
 }
 
+function FacturaDemo() {
+  const [factura, setFactura] = useState(false);
+  return (
+    <div className="demo">
+      <div className="demo-label">Demo · presupuesto → factura</div>
+      <div className="ticket">
+        <div className="t-head">{factura ? 'FACTURA A-2026/001' : 'PRESUPUESTO P-014'}<br /><small>{factura ? 'Documento fiscal · VeriFactu' : 'Sin valor fiscal · editable'}</small></div>
+        <div className="t-line"><span>Menú evento (40 pax)</span><span>1.200,00 €</span></div>
+        <div className="t-line"><span>Bebidas y café</span><span>320,00 €</span></div>
+        <div className="t-tot"><span>TOTAL</span><span>1.520,00 €</span></div>
+        {factura && <div className="t-qr" />}
+        {factura && <div className="t-hash">Huella SHA-256:<br /><code>e3b0c44298fc1c149afbf4c8996fb92427ae41e4</code></div>}
+      </div>
+      <button className="demo-btn" onClick={() => setFactura((x) => !x)}>
+        {factura ? '← Volver a presupuesto' : 'Convertir en factura'}
+      </button>
+    </div>
+  );
+}
+
 function Demo({ m }) {
   switch (m.detalle.demo) {
     case 'ticket': return <TicketDemo />;
     case 'fidelidad': return <FidelidadDemo />;
     case 'fichaje': return <FichajeDemo />;
     case 'alertas': return <AlertasDemo />;
+    case 'factura': return <FacturaDemo />;
     default: return null;
   }
 }
@@ -199,7 +233,16 @@ export default function CatalogoPage() {
   const [selected, setSelected] = useState({});
   const [open, setOpen] = useState({});
 
-  const toggleSel = (id) => setSelected((s) => ({ ...s, [id]: !s[id] }));
+  const toggleSel = (id) =>
+    setSelected((s) => {
+      const next = { ...s, [id]: !s[id] };
+      const mod = MODULOS.find((m) => m.id === id);
+      // Al añadir una ampliación (Facturación Pro), se activa también su módulo base (VeriFactu).
+      if (next[id] && mod?.requiere) next[mod.requiere] = true;
+      // Al quitar un módulo, se quitan las ampliaciones que lo necesitan.
+      if (!next[id]) MODULOS.forEach((m) => { if (m.requiere === id) next[m.id] = false; });
+      return next;
+    });
   const toggleOpen = (id) => setOpen((o) => ({ ...o, [id]: !o[id] }));
 
   const selIds = MODULOS.filter((m) => selected[m.id]);
@@ -238,10 +281,12 @@ export default function CatalogoPage() {
           <span>⚠️</span>
           <div><b>Precios de ejemplo.</b> Cambia los importes en el array <code>MODULOS</code> de este archivo.</div>
         </div>
-<div style={{ display:'flex', alignItems:'center', gap:'10px', margin:'18px 0 0', background:'rgba(46,158,107,.10)', border:'1px solid #BCE05A', borderRadius:'14px', padding:'14px 18px', color:'#0D3A28', fontSize:'.95rem' }}>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '18px 0 0', background: 'rgba(46,158,107,.10)', border: '1px solid #BCE05A', borderRadius: '14px', padding: '14px 18px', color: '#0D3A28', fontSize: '.95rem' }}>
           <span>📊</span>
           <div><b>Incluido en todos los planes:</b> el panel de Salud Financiera, que te dice cómo va tu negocio de un vistazo. Sin coste adicional.</div>
         </div>
+
         <section className="config" id="config">
           <div>
             <div className="section-title">

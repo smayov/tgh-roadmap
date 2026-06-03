@@ -29,7 +29,7 @@ const MODULOS = [
     titulo: 'Facturación Pro',
     desc: 'Ampliación de VeriFactu (requiere el módulo base). Presupuestos, proformas, anticipos para eventos y conversión en un clic a factura legal.',
     feats: ['Presupuestos y proformas', 'Anticipos / señales', 'Conversión en 1 clic', 'Requiere VeriFactu'],
-    precioMes: 19,
+    precioMes: 29,
     detalle: {
       demo: 'factura',
       ext: 'Crea estimados, presupuestos y proformas (sin valor fiscal, editables) y conviértelos en factura legal en un clic, reaprovechando todos los datos. Ideal para catering, eventos, bodas y clientes de empresa. La factura solo se vuelve fiscal (número, QR y registro AEAT) al confirmarla.',

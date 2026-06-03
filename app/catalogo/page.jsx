@@ -238,7 +238,10 @@ export default function CatalogoPage() {
           <span>⚠️</span>
           <div><b>Precios de ejemplo.</b> Cambia los importes en el array <code>MODULOS</code> de este archivo.</div>
         </div>
-
+<div style={{ display:'flex', alignItems:'center', gap:'10px', margin:'18px 0 0', background:'rgba(46,158,107,.10)', border:'1px solid #BCE05A', borderRadius:'14px', padding:'14px 18px', color:'#0D3A28', fontSize:'.95rem' }}>
+          <span>📊</span>
+          <div><b>Incluido en todos los planes:</b> el panel de Salud Financiera, que te dice cómo va tu negocio de un vistazo. Sin coste adicional.</div>
+        </div>
         <section className="config" id="config">
           <div>
             <div className="section-title">

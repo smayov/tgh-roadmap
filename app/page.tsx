@@ -1,2 +1,2 @@
 "use client";
-export { default } from "./catalogo/page";
+export { default } from "./landing";

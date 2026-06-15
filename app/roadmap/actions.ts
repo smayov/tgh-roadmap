@@ -8,7 +8,7 @@ export async function loginRoadmap(formData: FormData) {
   const pass = formData.get("password");
   if (typeof pass === "string" && pass === PASSWORD) {
     const store = await cookies();
-    store.set("roadmap_ok", "1", { httpOnly: true, path: "/roadmap", maxAge: 60 * 60 * 8 });
+    store.set("roadmap_ok", "1", { httpOnly: true, path: "/roadmap" });
   }
   redirect("/roadmap");
 }

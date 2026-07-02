@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { crearCheckout } from './checkout';
 
 /* ============================================================
    EDITA AQUI DATOS Y PRECIOS (EUROS)
    FOTOS: campo "img" de cada módulo. Hero: ver HeroPhoto abajo.
    ============================================================ */
 const ANUAL_FACTOR = 10; // meses cobrados al año (12 - 2 gratis)
-const DESCUENTO_PACK = 0.20; // 20% de descuento al elegir TODOS los módulos. Cambia aquí el %.
+const DESCUENTO_PACK = 0.25; // 25% de descuento al elegir TODOS los módulos. Cambia aquí el %.
 
 const MODULOS = [
   {
@@ -16,7 +17,7 @@ const MODULOS = [
     titulo: 'VeriFactu — Cumplimiento Fiscal',
     desc: 'Mantén tu restaurante legalmente protegido. Integración con la AEAT, encadenamiento SHA-256 y QR en cada ticket según el RD 1007/2023.',
     feats: ['Integración AEAT', 'Firma y hash SHA-256', 'QR por ticket', 'Importación TPV (CSV)'],
-    precioMes: 15,
+    precioMes: 27,
     detalle: {
       demo: 'ticket',
       ext: 'Cada ticket se firma y se encadena con el anterior mediante un hash SHA-256, generando una huella inalterable y un QR verificable por la AEAT. Cumples con la normativa antifraude sin cambiar tu forma de trabajar.',
@@ -29,7 +30,7 @@ const MODULOS = [
     titulo: 'Facturación Pro',
     desc: 'Ampliación de VeriFactu (requiere el módulo base). Presupuestos, proformas, anticipos para eventos y conversión en un clic a factura legal.',
     feats: ['Presupuestos y proformas', 'Anticipos / señales', 'Conversión en 1 clic', 'Requiere VeriFactu'],
-    precioMes: 29,
+    precioMes: 37,
     detalle: {
       demo: 'factura',
       ext: 'Crea estimados, presupuestos y proformas (sin valor fiscal, editables) y conviértelos en factura legal en un clic, reaprovechando todos los datos. Ideal para catering, eventos, bodas y clientes de empresa. La factura solo se vuelve fiscal (número, QR y registro AEAT) al confirmarla.',
@@ -42,7 +43,7 @@ const MODULOS = [
     titulo: 'Gestión de Clientes',
     desc: 'CRM pensado para hostelería: fichas de cliente, historial de consumo, reservas, fidelización y campañas de marketing segmentadas.',
     feats: ['Fichas y historial', 'Reservas', 'Fidelización', 'Campañas / marketing'],
-    precioMes: 19,
+    precioMes: 24,
     detalle: {
       demo: 'fidelidad',
       ext: 'Conoce a tus clientes: qué consumen, cada cuánto vuelven y qué les gusta. Crea programas de fidelización automáticos y campañas segmentadas que aumentan la repetición de visita.',
@@ -55,7 +56,7 @@ const MODULOS = [
     titulo: 'Gestión de Empleados',
     desc: 'Cumple con el registro de jornada obligatorio y gestiona a tu equipo desde un solo sitio: fichajes, turnos, ausencias y control de horas.',
     feats: ['Fichajes / registro de jornada', 'Turnos y cuadrantes', 'Vacaciones y ausencias', 'Control de horas'],
-    precioMes: 29,
+    precioMes: 31,
     detalle: {
       demo: 'fichaje',
       ext: 'El registro de jornada es obligatorio en España. Tu equipo ficha entrada y salida desde el móvil o el TPV, y tú tienes el control de horas, turnos y ausencias al día, listo ante cualquier inspección.',
@@ -68,7 +69,7 @@ const MODULOS = [
     titulo: 'Alertas que afectan a tu negocio',
     desc: 'Avisos en tiempo real de factores externos que impactan tu afluencia y operativa: clima, obras en la zona, cortes de calle y eventos cercanos.',
     feats: ['Clima (lluvia, calor, temporal)', 'Obras y cortes de calle', 'Eventos en la zona', 'Avisos automáticos'],
-    precioMes: 19,
+    precioMes: 10,
     detalle: {
       demo: 'alertas',
       ext: 'Anticípate a lo que pasa fuera de tu local. Recibe avisos automáticos cuando el clima, unas obras o un evento cercano van a cambiar tu afluencia, para que ajustes personal, stock y promociones a tiempo.',
@@ -354,7 +355,12 @@ export default function CatalogoPage() {
     // TODO: aquí conecta tu formulario / email / WhatsApp / pasarela de pago.
     alert('Solicitud de implementación:\n\n' + names);
   };
-
+const pagar = async () => {
+    if (selIds.length === 0) { alert('Selecciona al menos un módulo para continuar.'); return; }
+    const res = await crearCheckout(selIds.map((m) => m.id), cycle);
+    if (res?.url) { window.location.href = res.url; }
+    else { alert(res?.error || 'No se pudo iniciar el pago.'); }
+  };
   return (
     <div className="tgh-root">
       <style>{STYLES}</style>
@@ -376,25 +382,19 @@ export default function CatalogoPage() {
           <div className="hero-img"><HeroPhoto /></div>
         </section>
 
-        <div className="notice">
-          <span>⚠️</span>
-          <div><b>Precios de ejemplo.</b> Cambia los importes en el array <code>MODULOS</code> de este archivo.</div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '18px 0 0', background: 'rgba(46,158,107,.10)', border: '1px solid #BCE05A', borderRadius: '14px', padding: '14px 18px', color: '#0D3A28', fontSize: '.95rem' }}>
-          <span>📊</span>
-          <div><b>Incluido en todos los planes:</b> el panel de Salud Financiera, que te dice cómo va tu negocio de un vistazo. Sin coste adicional.</div>
-        </div>
-
         <section className="config" id="config">
           <div>
             <div className="section-title">
               <h2>Configura tu suite</h2>
               <div className="billing">
                 <button className={cycle === 'month' ? 'active' : ''} onClick={() => setCycle('month')}>Mensual</button>
-                <button className={cycle === 'year' ? 'active' : ''} onClick={() => setCycle('year')}>Anual ·2 meses gratis</button>
+                <button className={cycle === 'year' ? 'active' : ''} onClick={() => setCycle('year')}>Anual · 2 meses gratis</button>
               </div>
             </div>
+
+            <p className="config-intro">
+              Activa solo los módulos que necesites. El panel de <b>Salud Financiera</b> está incluido en todos los planes, sin coste.
+            </p>
 
             <div className="cards">
               {MODULOS.map((m) => (
@@ -409,7 +409,7 @@ export default function CatalogoPage() {
                       <div className="m-price">
                         <span className="amt">{fmt(priceFor(m, cycle))} €</span>
                         <span className="per">{cycle === 'month' ? '/mes' : '/año'}</span>
-                        <span className="ex">ejemplo</span>
+                        <span className="iva">+ 21% IVA</span>
                       </div>
                     </div>
                     <p className="m-desc">{m.desc}</p>
@@ -456,17 +456,19 @@ export default function CatalogoPage() {
                 <div className="sumrow pack"><span>Suite completa (−{Math.round(DESCUENTO_PACK * 100)}%)</span><span>−{fmt(descuento)} €</span></div>
               )}
               <div className="total">
-                <div><div className="lbl">Total</div></div>
+                <div><div className="lbl">Total · sin IVA</div></div>
                 <div className="big">{fmt(total)} €<small>{cycle === 'month' ? '/mes' : '/año'}</small></div>
               </div>
-              <button className="cta" onClick={solicitar}>Solicitar implementación</button>
+              <div className="iva-note">Se añade el 21% de IVA en el pago.</div>
+              <button className="cta" onClick={pagar}>Contratar ahora</button>
+              
               <button className="reset" onClick={() => setSelected({})}>Reiniciar selección</button>
             </div>
           </aside>
         </section>
       </div>
 
-      <footer className="tgh-footer">Tu Gestor Hostelero — Suite modular para el sector hostelero · Precios en euros (IVA no incluido)</footer>
+      <footer className="tgh-footer">Tu Gestor Hostelero — Suite modular para el sector hostelero · Precios sin IVA · se añade el 21% en el pago</footer>
     </div>
   );
 }
@@ -509,9 +511,6 @@ const STYLES = `
 .tgh-root .hero-img{position:relative;border-radius:24px;overflow:hidden;aspect-ratio:5/4;box-shadow:var(--shadow);background:linear-gradient(135deg,var(--green-700),var(--teal))}
 .tgh-root .hero-img img{width:100%;height:100%;object-fit:cover;display:block}
 
-.tgh-root .notice{margin:24px 0 0;display:flex;gap:12px;align-items:flex-start;background:#FFF6DB;border:1px solid #F0D98A;border-radius:14px;padding:14px 18px;font-size:.92rem;color:#6b5a1f}
-.tgh-root .notice b{color:#594a14}
-
 .tgh-root .config{display:grid;grid-template-columns:1fr 360px;gap:34px;align-items:start;padding:42px 0 90px}
 @media(max-width:920px){.tgh-root .config{grid-template-columns:1fr}}
 .tgh-root .section-title{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:8px}
@@ -539,7 +538,9 @@ const STYLES = `
 .tgh-root .m-price{text-align:right;flex:none}
 .tgh-root .m-price .amt{font-family:'Bricolage Grotesque';font-weight:800;font-size:1.6rem;color:var(--green-900)}
 .tgh-root .m-price .per{display:block;font-size:.77rem;color:var(--muted);font-weight:600}
-.tgh-root .m-price .ex{display:block;font-size:.64rem;color:#b08a1a;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+.tgh-root .m-price .iva{display:block;font-size:.66rem;color:var(--muted);font-weight:600;margin-top:2px}
+.tgh-root .config-intro{margin:-4px 0 24px;color:var(--muted);font-size:1rem;max-width:62ch}
+.tgh-root .config-intro b{color:var(--green-700);font-weight:700}
 .tgh-root .m-desc{color:var(--muted);margin:14px 0 14px;font-size:.99rem}
 .tgh-root .m-feats{display:flex;flex-wrap:wrap;gap:8px}
 .tgh-root .feat{font-size:.81rem;font-weight:500;background:var(--paper);border:1px solid var(--line);padding:5px 11px;border-radius:8px}
@@ -594,6 +595,7 @@ const STYLES = `
 .tgh-root .empty{font-size:.92rem;color:rgba(234,243,236,.5);padding:14px 0}
 .tgh-root .sumrow.pack span{color:var(--lime)}
 .tgh-root .pack-hint{font-size:.82rem;font-weight:600;color:var(--lime);padding:12px 0 0}
+.tgh-root .iva-note{font-size:.78rem;color:rgba(234,243,236,.6);margin-top:10px;text-align:center}
 .tgh-root .total{display:flex;justify-content:space-between;align-items:flex-end;margin-top:20px;padding-top:18px;border-top:2px solid rgba(188,224,90,.4)}
 .tgh-root .total .lbl{font-size:.95rem;color:rgba(234,243,236,.75)}
 .tgh-root .total .big{font-family:'Bricolage Grotesque';font-weight:800;font-size:2.3rem;line-height:1;color:#fff}

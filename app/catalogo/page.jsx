@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { crearCheckout } from './checkout';
+import { supabase } from '../supabaseClient';
 
 /* ============================================================
    EDITA AQUI DATOS Y PRECIOS (EUROS)
@@ -330,6 +331,20 @@ export default function CatalogoPage() {
   const [cycle, setCycle] = useState('month');
   const [selected, setSelected] = useState({});
   const [open, setOpen] = useState({});
+  const [negocioId, setNegocioId] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('negocios')
+        .select('id')
+        .eq('propietario', user.id)
+        .single();
+      if (data) setNegocioId(data.id);
+    })();
+  }, []);
 
   const toggleSel = (id) =>
     setSelected((s) => {
@@ -357,7 +372,7 @@ export default function CatalogoPage() {
   };
 const pagar = async () => {
     if (selIds.length === 0) { alert('Selecciona al menos un módulo para continuar.'); return; }
-    const res = await crearCheckout(selIds.map((m) => m.id), cycle);
+    const res = await crearCheckout(selIds.map((m) => m.id), cycle, negocioId);
     if (res?.url) { window.location.href = res.url; }
     else { alert(res?.error || 'No se pudo iniciar el pago.'); }
   };

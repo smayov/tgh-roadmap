@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
+import { useRouter } from "next/navigation";
 
 export default function Acceso() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [user, setUser] = useState(null);
@@ -18,28 +20,47 @@ export default function Acceso() {
 
   const registrar = async () => {
     setMsg("");
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) setMsg("Error: " + error.message);
-    else setMsg("Cuenta creada. Ya puedes iniciar sesión.");
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) { setMsg("Error: " + error.message); return; }
+
+    const nuevoUser = data.user;
+    if (nuevoUser) {
+      // Crear el negocio del usuario si aún no tiene uno
+      const { data: negocioExistente } = await supabase
+        .from("negocios")
+        .select("id")
+        .eq("propietario", nuevoUser.id)
+        .maybeSingle();
+
+      if (!negocioExistente) {
+        await supabase.from("negocios").insert({
+          propietario: nuevoUser.id,
+          nombre: "Mi negocio",
+        });
+      }
+    }
+    setMsg("Cuenta creada. Ya puedes iniciar sesión.");
   };
 
   const entrar = async () => {
     setMsg("");
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setMsg("Error: " + error.message);
+    if (error) { setMsg("Error: " + error.message); return; }
+    router.push("/catalogo");
   };
 
   const salir = async () => { await supabase.auth.signOut(); setMsg(""); };
 
   if (cargando) return <div style={wrap}><p style={{color:"#fff"}}>Cargando...</p></div>;
 
-  if (user) {
+if (user) {
     return (
       <div style={wrap}>
         <div style={card}>
           <h1 style={{ color: "#0D3A28", marginBottom: 8 }}>Sesión iniciada ✅</h1>
           <p style={{ color: "#5C6B61", marginBottom: 20 }}>Has entrado como <b>{user.email}</b></p>
-          <button onClick={salir} style={btn}>Cerrar sesión</button>
+          <button onClick={() => router.push("/catalogo")} style={btn}>Ir al catálogo</button>
+          <button onClick={salir} style={btnGhost}>Cerrar sesión</button>
         </div>
       </div>
     );

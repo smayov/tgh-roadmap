@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { crearCheckout } from './checkout';
-import { supabase } from '../supabaseClient';
 
 /* ============================================================
+   PÁGINA PÚBLICA "MONTA TU SUITE" (calculadora, sin login)
+   Reutiliza los datos y estilos del catálogo, pero:
+   - NO requiere sesión (es el escaparate para visitantes).
+   - NO contrata: el botón lleva a /acceso a crear cuenta.
    EDITA AQUI DATOS Y PRECIOS (EUROS)
-   FOTOS: campo "img" de cada módulo. Hero: ver HeroPhoto abajo.
    ============================================================ */
 const ANUAL_FACTOR = 10; // meses cobrados al año (12 - 2 gratis)
 const DESCUENTO_PACK = 0.25; // 25% de descuento al elegir TODOS los módulos. Cambia aquí el %.
@@ -229,124 +230,13 @@ function Demo({ m }) {
 }
 
 /* ============================================================
-   PANEL DE SALUD FINANCIERA (arriba de la página, incluido y gratis)
-   EDITA AQUÍ los números de ejemplo. Luego saldrán de tus módulos.
-   ============================================================ */
-const SALUD = {
-  negocio: 'La Tasca de Santi',
-  estado: 'verde', // 'verde' | 'amarillo' | 'rojo'
-  mensaje: 'Vas bien: ventas al alza y costes controlados',
-  ventas: 12400, ventasVar: 8, ticketMedio: 18.5, mejorDia: 'Sábado',
-  costePersonal: 34, materiaPrima: 30, costePrincipal: 64,
-  beneficio: 2100, equilibrio: 9800, disponible: 7250,
-  mostrarReservas: true, reservas: 14, comensales: 38, ocupacion: 78,
-};
-const SF_SEM = {
-  verde:    { etiqueta: 'Verde',    icono: '✓', bg: 'rgba(46,158,107,.12)', borde: '#2E9E6B', color: '#1A6A48' },
-  amarillo: { etiqueta: 'Atención', icono: '!', bg: 'rgba(224,169,42,.14)', borde: '#E0A92A', color: '#8a6a14' },
-  rojo:     { etiqueta: 'Alerta',   icono: '!', bg: 'rgba(224,97,42,.12)',  borde: '#E0612A', color: '#a8401d' },
-};
-
-function SaludPanel() {
-  const d = SALUD;
-  const s = SF_SEM[d.estado] || SF_SEM.verde;
-  const sube = d.ventasVar >= 0;
-  const ticket = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(d.ticketMedio);
-  return (
-    <section className="sf-panel" id="panel">
-      <div className="sf-cover">
-        <img src="https://images.pexels.com/photos/26743048/pexels-photo-26743048.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="Billetes de euro y gráficas de crecimiento sobre una mesa" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-      </div>
-      <div className="sf-panel-head">
-        <div>
-          <h2>Salud financiera</h2>
-          <p>Hola, {d.negocio} · resumen de este mes</p>
-        </div>
-        <span className="sf-incluido">Incluido · sin coste</span>
-      </div>
-
-      <div className="sf-health" style={{ background: s.bg, borderColor: s.borde }}>
-        <span className="sf-health-icon" style={{ background: s.borde }}>{s.icono}</span>
-        <div className="sf-health-text">
-          <span className="sf-health-label" style={{ color: s.color }}>Salud del negocio</span>
-          <strong style={{ color: s.color }}>{d.mensaje}</strong>
-        </div>
-        <span className="sf-pill" style={{ color: s.color, borderColor: s.borde }}>{s.etiqueta}</span>
-      </div>
-
-      <div className="sf-grid">
-        <div className="sf-card">
-          <div className="sf-card-head"><span className="sf-emoji">💶</span> Ingresos</div>
-          <div className="sf-big">{fmt(d.ventas)} €
-            <span className={'sf-var ' + (sube ? 'up' : 'down')}>{sube ? '↑' : '↓'} {Math.abs(d.ventasVar)}% vs mes pasado</span>
-          </div>
-          <div className="sf-rows">
-            <div className="sf-row"><span>Ticket medio</span><b>{ticket} €</b></div>
-            <div className="sf-row"><span>Mejor día</span><b>{d.mejorDia}</b></div>
-          </div>
-        </div>
-
-        <div className="sf-card">
-          <div className="sf-card-head"><span className="sf-emoji">🧾</span> Costes</div>
-          <div className="sf-rows">
-            <div className="sf-row"><span>Coste de personal</span><b className={d.costePersonal > 32 ? 'warn' : ''}>{d.costePersonal}%{d.costePersonal > 32 ? ' · algo alto' : ''}</b></div>
-            <div className="sf-row"><span>Materia prima</span><b>{d.materiaPrima}%</b></div>
-          </div>
-          <div className="sf-barwrap">
-            <div className="sf-row"><span>Coste principal</span><b>{d.costePrincipal}%</b></div>
-            <div className="sf-bar"><span style={{ width: d.costePrincipal + '%', background: '#BA7517' }} /></div>
-          </div>
-        </div>
-
-        <div className="sf-card">
-          <div className="sf-card-head"><span className="sf-emoji">📈</span> Rentabilidad y tesorería</div>
-          <div className="sf-big">{fmt(d.beneficio)} €<span className="sf-sub">beneficio estimado</span></div>
-          <div className="sf-rows">
-            <div className="sf-row"><span>Punto de equilibrio</span><b>{fmt(d.equilibrio)} €</b></div>
-            <div className="sf-row"><span>Dinero disponible</span><b>{fmt(d.disponible)} €</b></div>
-          </div>
-        </div>
-
-        {d.mostrarReservas && (
-          <div className="sf-card">
-            <div className="sf-card-head"><span className="sf-emoji">📅</span> Reservas y ocupación</div>
-            <div className="sf-mini">
-              <div className="sf-mini-box"><span>Reservas hoy</span><b>{d.reservas}</b></div>
-              <div className="sf-mini-box"><span>Comensales</span><b>{d.comensales}</b></div>
-            </div>
-            <div className="sf-barwrap">
-              <div className="sf-row"><span>Ocupación prevista</span><b>{d.ocupacion}%</b></div>
-              <div className="sf-bar"><span style={{ width: d.ocupacion + '%', background: '#199E94' }} /></div>
-            </div>
-          </div> 
-        )}
-      </div>
-    </section>
-  );
-}
-
-/* ============================================================
    PÁGINA
    ============================================================ */
-export default function CatalogoPage() {
+export default function PlanesPage() {
   const router = useRouter();
   const [cycle, setCycle] = useState('month');
   const [selected, setSelected] = useState({});
   const [open, setOpen] = useState({});
-  const [negocioId, setNegocioId] = useState(null);
-
-  useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.replace('/acceso'); return; }
-      const { data } = await supabase
-        .from('negocios')
-        .select('id')
-        .eq('propietario', user.id)
-        .single();
-      if (data) setNegocioId(data.id);
-    })();
-  }, []);
 
   const toggleSel = (id) =>
     setSelected((s) => {
@@ -366,18 +256,8 @@ export default function CatalogoPage() {
   const descuento = allSel ? Math.round(subtotal * DESCUENTO_PACK) : 0;
   const total = subtotal - descuento;
 
-  const solicitar = () => {
-    if (selIds.length === 0) { alert('Selecciona al menos un módulo para continuar.'); return; }
-    const names = selIds.map((m) => m.titulo.split('—')[0].trim()).join(', ');
-    // TODO: aquí conecta tu formulario / email / WhatsApp / pasarela de pago.
-    alert('Solicitud de implementación:\n\n' + names);
-  };
-const pagar = async () => {
-    if (selIds.length === 0) { alert('Selecciona al menos un módulo para continuar.'); return; }
-    const res = await crearCheckout(selIds.map((m) => m.id), cycle, negocioId);
-    if (res?.url) { window.location.href = res.url; }
-    else { alert(res?.error || 'No se pudo iniciar el pago.'); }
-  };
+  const irACrearCuenta = () => router.push('/acceso');
+
   return (
     <div className="tgh-root">
       <style>{STYLES}</style>
@@ -385,16 +265,14 @@ const pagar = async () => {
       <div className="tgh-wrap">
         <nav>
           <div className="brand"><span className="mark">◆</span> Tu Gestor Hostelero</div>
-          <div className="navlinks"><a href="#panel">Mi panel</a><a href="#config">Módulos</a><a href="#config">Precios</a><a href="#config">Contacto</a></div>
+          <div className="navlinks"><a href="/">Inicio</a><a href="#config">Módulos</a><a href="#config">Precios</a><a href="/acceso">Acceder</a></div>
         </nav>
-
-        <SaludPanel />
 
         <section className="hero">
           <div>
-            <span className="eyebrow"><span className="dot" /> Suite modular para hostelería</span>
-            <h1>Elige lo que <em>tu negocio</em> necesita.</h1>
-            <p className="lead">Activa solo los módulos que te interesan, descúbrelos con su demo y conoce tu coste al instante.</p>
+            <span className="eyebrow"><span className="dot" /> Calculadora de precios</span>
+            <h1>Monta <em>tu suite</em>.</h1>
+            <p className="lead">Elige los módulos que necesitas y descubre tu precio al instante. Sin compromiso — para contratar, crea tu cuenta.</p>
           </div>
           <div className="hero-img"><HeroPhoto /></div>
         </section>
@@ -410,7 +288,7 @@ const pagar = async () => {
             </div>
 
             <p className="config-intro">
-              Activa solo los módulos que necesites. El panel de <b>Salud Financiera</b> está incluido en todos los planes, sin coste.
+              Prueba distintas combinaciones y mira cuánto costaría. El panel de <b>Salud Financiera</b> está incluido en todos los planes, sin coste.
             </p>
 
             <div className="cards">
@@ -477,8 +355,8 @@ const pagar = async () => {
                 <div className="big">{fmt(total)} €<small>{cycle === 'month' ? '/mes' : '/año'}</small></div>
               </div>
               <div className="iva-note">Se añade el 21% de IVA en el pago.</div>
-              <button className="cta" onClick={pagar}>Contratar ahora</button>
-              
+              <button className="cta" onClick={irACrearCuenta}>Crear cuenta para contratar</button>
+              <div className="sim-note">Simulación sin compromiso · para contratar, crea tu cuenta</div>
               <button className="reset" onClick={() => setSelected({})}>Reiniciar selección</button>
             </div>
           </aside>
@@ -619,40 +497,7 @@ const STYLES = `
 .tgh-root .total .big small{font-size:.9rem;font-weight:600;color:rgba(234,243,236,.6)}
 .tgh-root .cta{display:block;width:100%;text-align:center;margin-top:22px;background:var(--lime);color:var(--green-900);font-family:'Bricolage Grotesque';font-weight:800;font-size:1.02rem;border:none;border-radius:14px;padding:15px;cursor:pointer;transition:.2s}
 .tgh-root .cta:hover{transform:translateY(-2px);box-shadow:0 14px 30px -10px rgba(188,224,90,.6)}
+.tgh-root .sim-note{font-size:.76rem;color:rgba(234,243,236,.55);margin-top:12px;text-align:center;line-height:1.4}
 .tgh-root .reset{display:block;width:100%;margin-top:10px;background:none;border:none;color:rgba(234,243,236,.6);font-family:inherit;font-size:.85rem;cursor:pointer;text-decoration:underline}
 .tgh-footer{border-top:1px solid var(--line);padding:30px 0;color:var(--muted);font-size:.88rem;text-align:center;max-width:1180px;margin:0 auto}
-
-/* ---- Panel de Salud Financiera (arriba de la página) ---- */
-.tgh-root .sf-panel{padding:24px 0 6px}
-.tgh-root .sf-cover{position:relative;height:180px;border-radius:18px;overflow:hidden;margin-bottom:18px;background:linear-gradient(135deg,var(--green-700),var(--teal))}
-.tgh-root .sf-cover img{width:100%;height:100%;object-fit:cover;object-position:center;display:block}
-.tgh-root .sf-panel-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
-.tgh-root .sf-panel-head h2{font-size:1.7rem;font-weight:700}
-.tgh-root .sf-panel-head p{color:var(--muted);font-size:.95rem;margin-top:2px}
-.tgh-root .sf-incluido{font-size:.72rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--green-900);background:var(--lime);padding:6px 12px;border-radius:100px}
-.tgh-root .sf-health{display:flex;align-items:center;gap:14px;border:1.5px solid;border-radius:18px;padding:16px 20px;margin-bottom:16px}
-.tgh-root .sf-health-icon{flex:none;width:36px;height:36px;border-radius:50%;color:#fff;display:grid;place-items:center;font-weight:800;font-size:1.15rem}
-.tgh-root .sf-health-text{flex:1;display:flex;flex-direction:column;gap:2px}
-.tgh-root .sf-health-label{font-size:.82rem;font-weight:600}
-.tgh-root .sf-health-text strong{font-size:1.06rem;font-weight:700}
-.tgh-root .sf-pill{flex:none;font-size:.78rem;font-weight:700;border:1.5px solid;border-radius:100px;padding:5px 14px}
-.tgh-root .sf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
-.tgh-root .sf-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px 22px;box-shadow:var(--shadow)}
-.tgh-root .sf-card-head{display:flex;align-items:center;gap:9px;font-family:'Bricolage Grotesque';font-weight:700;font-size:1.04rem;margin-bottom:14px}
-.tgh-root .sf-emoji{font-size:1.12rem}
-.tgh-root .sf-big{font-family:'Bricolage Grotesque';font-weight:800;font-size:1.7rem;color:var(--green-900);display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
-.tgh-root .sf-sub{font-size:.84rem;font-weight:600;color:var(--muted)}
-.tgh-root .sf-var{font-size:.82rem;font-weight:700}
-.tgh-root .sf-var.up{color:var(--green-500)} .tgh-root .sf-var.down{color:#c0492a}
-.tgh-root .sf-rows{margin-top:14px;display:flex;flex-direction:column;gap:9px}
-.tgh-root .sf-row{display:flex;justify-content:space-between;align-items:center;font-size:.92rem;color:var(--muted)}
-.tgh-root .sf-row b{color:var(--ink);font-weight:700}
-.tgh-root .sf-row b.warn{color:#b08a1a}
-.tgh-root .sf-barwrap{margin-top:14px}
-.tgh-root .sf-bar{height:7px;background:#ECEADD;border-radius:5px;overflow:hidden;margin-top:7px}
-.tgh-root .sf-bar span{display:block;height:100%;border-radius:5px}
-.tgh-root .sf-mini{display:flex;gap:12px;margin-bottom:6px}
-.tgh-root .sf-mini-box{flex:1;background:#F7F5EC;border-radius:12px;padding:11px 14px}
-.tgh-root .sf-mini-box span{display:block;font-size:.8rem;color:var(--muted)}
-.tgh-root .sf-mini-box b{font-family:'Bricolage Grotesque';font-weight:800;font-size:1.35rem;color:var(--green-900)}
 `;

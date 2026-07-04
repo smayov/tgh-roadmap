@@ -73,12 +73,12 @@ footer{border-top:1px solid var(--line);padding:26px 0;color:var(--muted);font-s
           <nav>
             <div className="brand"><span className="mark">◆</span> Tu Gestor Hostelero</div>
             <div className="links">
-              <a href="/catalogo">Módulos</a>
-              <a href="/catalogo">Precios</a>
+              <a href="/planes">Módulos</a>
+              <a href="/planes">Precios</a>
             </div>
             <div className="nav-cta">
               <a href="/acceso" className="btn btn-ghost">Acceder</a>
-              <a href="/catalogo" className="btn btn-primary">Ver planes</a>
+              <a href="/planes" className="btn btn-primary">Ver planes</a>
             </div>
           </nav>
         </header>
@@ -89,7 +89,7 @@ footer{border-top:1px solid var(--line);padding:26px 0;color:var(--muted);font-s
             <h1>Tu negocio hostelero, en regla y bajo control.</h1>
             <p className="sub">Cumple con VeriFactu, controla tus números y fideliza a tus clientes. Sin hojas de cálculo y sin sustos con Hacienda.</p>
             <div className="hero-cta">
-              <a href="/catalogo" className="btn btn-primary btn-lg">Ver planes desde 15 €/mes</a>
+              <a href="/planes" className="btn btn-primary btn-lg">Ver planes desde 15 €/mes</a>
               <a href="/acceso" className="btn btn-ghost btn-lg">Ya soy cliente</a>
             </div>
             <p className="note">Elige solo los módulos que necesitas. <b>Sin permanencia.</b></p>

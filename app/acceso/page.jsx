@@ -13,9 +13,10 @@ export default function Acceso() {
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => { setUser(data.user); setCargando(false); });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => setUser(session?.user ?? null));
-    return () => sub.subscription.unsubscribe();
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) { redirigirSegunEstado(data.user); return; }
+      setCargando(false);
+    });
   }, []);
 
   const registrar = async () => {
@@ -44,27 +45,36 @@ export default function Acceso() {
 
   const entrar = async () => {
     setMsg("");
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) { setMsg("Error: " + error.message); return; }
-    router.push("/catalogo");
+    await redirigirSegunEstado(data.user);
   };
 
   const salir = async () => { await supabase.auth.signOut(); setMsg(""); };
 
+  // Decide a dónde llevar al usuario: panel si ya tiene módulos, catálogo si no.
+  const redirigirSegunEstado = async (u) => {
+    const { data: negocio } = await supabase
+      .from("negocios")
+      .select("id")
+      .eq("propietario", u.id)
+      .maybeSingle();
+
+    if (negocio) {
+      const { data: mods } = await supabase
+        .from("modulos_activos")
+        .select("id")
+        .eq("negocio_id", negocio.id)
+        .eq("estado", "activo")
+        .limit(1);
+      if (mods && mods.length > 0) { router.replace("/panel"); return; }
+    }
+    router.replace("/catalogo");
+  };
+
   if (cargando) return <div style={wrap}><p style={{color:"#fff"}}>Cargando...</p></div>;
 
-if (user) {
-    return (
-      <div style={wrap}>
-        <div style={card}>
-          <h1 style={{ color: "#0D3A28", marginBottom: 8 }}>Sesión iniciada ✅</h1>
-          <p style={{ color: "#5C6B61", marginBottom: 20 }}>Has entrado como <b>{user.email}</b></p>
-          <button onClick={() => router.push("/catalogo")} style={btn}>Ir al catálogo</button>
-          <button onClick={salir} style={btnGhost}>Cerrar sesión</button>
-        </div>
-      </div>
-    );
-  }
+
 
   return (
     <div style={wrap}>

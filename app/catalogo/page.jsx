@@ -347,7 +347,10 @@ export default function CatalogoPage() {
       if (data) setNegocioId(data.id);
     })();
   }, []);
-
+const cerrarSesion = async () => {
+    await supabase.auth.signOut();
+    router.replace('/acceso');
+  };
   const toggleSel = (id) =>
     setSelected((s) => {
       const next = { ...s, [id]: !s[id] };
@@ -385,7 +388,12 @@ const pagar = async () => {
       <div className="tgh-wrap">
         <nav>
           <div className="brand"><span className="mark">◆</span> Tu Gestor Hostelero</div>
-          <div className="navlinks"><a href="#panel">Mi panel</a><a href="#config">Módulos</a><a href="#config">Precios</a><a href="#config">Contacto</a></div>
+          <div className="navlinks">
+            <a href="/panel">Mi panel</a>
+            <a href="#config">Módulos</a>
+            <a href="#config">Precios</a>
+            <button onClick={cerrarSesion} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer' }}>Cerrar sesión</button>
+          </div>
         </nav>
 
         <SaludPanel />

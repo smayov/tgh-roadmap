@@ -317,7 +317,7 @@ function SaludPanel() {
               <div className="sf-row"><span>Ocupación prevista</span><b>{d.ocupacion}%</b></div>
               <div className="sf-bar"><span style={{ width: d.ocupacion + '%', background: '#199E94' }} /></div>
             </div>
-          </div>
+          </div> 
         )}
       </div>
     </section>

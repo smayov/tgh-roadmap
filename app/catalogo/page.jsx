@@ -328,6 +328,7 @@ function SaludPanel() {
    PÁGINA
    ============================================================ */
 export default function CatalogoPage() {
+  const router = useRouter();
   const [cycle, setCycle] = useState('month');
   const [selected, setSelected] = useState({});
   const [open, setOpen] = useState({});
@@ -336,7 +337,7 @@ export default function CatalogoPage() {
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) { router.replace('/acceso'); return; }
       const { data } = await supabase
         .from('negocios')
         .select('id')

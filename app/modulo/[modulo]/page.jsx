@@ -167,8 +167,13 @@ export default function ModuloPage() {
         <p style={reassure}>
           Tu módulo ya está activo y reservado. Te avisaremos en cuanto esté listo para usar.
         </p>
+       {moduloId === 'verifactu' && (
+      <button onClick={() => router.push('/demo/verifactu')} style={btnPreview}>
+        Ver vista previa del módulo →
+      </button>
+    )}
 
-      </div>
+       </div>
     </div>
   );
 }
@@ -216,3 +221,4 @@ const reassure = { color: '#8FA79A', fontSize: 14, maxWidth: 460, margin: '0 aut
 const btn = { width: '100%', padding: 12, borderRadius: 10, border: 'none', background: '#1A6A48', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', marginTop: 16 };
 const btnLima = { width: '100%', padding: 13, borderRadius: 10, border: 'none', background: '#BCE05A', color: '#0D3A28', fontWeight: 800, fontSize: 15, cursor: 'pointer', marginBottom: 10 };
 const btnGhost = { width: '100%', padding: 12, borderRadius: 10, border: '1.5px solid rgba(255,255,255,.25)', background: 'transparent', color: '#EAF3EC', fontWeight: 700, fontSize: 15, cursor: 'pointer' };
+const btnPreview = { marginTop: 20, background: 'rgba(188,224,90,.16)', color: '#BCE05A', border: '1.5px solid rgba(188,224,90,.4)', borderRadius: 10, padding: '11px 22px', fontSize: 15, fontWeight: 700, cursor: 'pointer' };

@@ -6,11 +6,13 @@
    Vista previa estática de las pantallas de facturación.
    No guarda datos ni funciona: es solo para enseñar el diseño.
    ============================================================ */
+   import { useRouter } from 'next/navigation';
 export default function DemoVerifactu() {
+    const router = useRouter();
   return (
     <div style={wrap}>
       <div style={container}>
-
+         <button onClick={() => router.back()} style={btnVolver}>← Volver</button>
         <div style={avisoDemo}>
           <b>Vista previa · demo</b> — así se verá el módulo VeriFactu cuando esté listo. Los datos son de ejemplo y aún no es funcional.
         </div>
@@ -168,3 +170,4 @@ const btnPrim = { flex: 1, textAlign: 'center', background: '#1A6A48', color: '#
 const notaPie = { fontSize: 13, color: '#7A857D', marginTop: 12 };
 
 const cierre = { textAlign: 'center', color: '#7A857D', fontSize: 14, margin: '28px 0 10px' };
+const btnVolver = { background: 'none', border: 'none', color: '#5C6B61', fontSize: 14, cursor: 'pointer', marginBottom: 16, padding: 0 };

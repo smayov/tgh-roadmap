@@ -44,6 +44,25 @@ export async function crearCheckout(ids, cycle, negocioId) {
   const seleccion = (ids || []).filter((id) => PRECIOS[id]);
   if (seleccion.length === 0) return { error: "Selecciona al menos un módulo." };
   if (!negocioId) return { error: "Falta el negocio. Inicia sesión antes de pagar." };
+
+  // ============================================================
+  // CONTROL DE COHERENCIA (seguridad):
+  // Verifica que las dependencias entre módulos se cumplen.
+  // Si algo no cuadra (ej. Facturación Pro sin VeriFactu, su base),
+  // NO se cobra nada: se aborta y se pide revisar la selección.
+  // Esto evita cobros incoherentes por estados "viejos" del navegador.
+  // ============================================================
+  const DEPENDENCIAS = {
+    facturacion: "verifactu",   // Facturación Pro requiere VeriFactu
+  };
+  for (const id of seleccion) {
+    const base = DEPENDENCIAS[id];
+    if (base && !seleccion.includes(base)) {
+      return {
+        error: "Tu selección no es válida (falta un módulo base necesario). Vuelve al catálogo y revísala antes de pagar.",
+      };
+    }
+  }
   const anual = cycle === "year";
   const interval = anual ? "year" : "month";
   const factor = anual ? ANUAL_FACTOR : 1;

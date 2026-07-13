@@ -4,16 +4,15 @@ import { createClient } from "@supabase/supabase-js";
 export const runtime = "nodejs";        // Stripe necesita Node, no Edge
 export const dynamic = "force-dynamic";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
-// Cliente admin: usa la service_role key, salta el RLS. SOLO en servidor.
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  { auth: { persistSession: false } }
-);
-
 export async function POST(req) {
+  // Se crean AQUÍ dentro (no al cargar el archivo) para que no fallen durante el build.
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false } }
+  );
+
   const sig = req.headers.get("stripe-signature");
   const rawBody = await req.text();   // imprescindible: cuerpo crudo para verificar la firma
 

@@ -524,7 +524,7 @@ const STYLES = `
 .tgh-root .navlinks{display:flex;gap:26px;font-weight:500;font-size:.95rem}
 .tgh-root .navlinks a{color:var(--muted);text-decoration:none;transition:color .2s}
 .tgh-root .navlinks a:hover{color:var(--green-700)}
-@media(max-width:720px){.tgh-root .navlinks{display:none}}
+@media(max-width:720px){.tgh-root .navlinks{display:flex;flex-wrap:wrap;gap:10px;font-size:.78rem;justify-content:center;width:100%;margin-top:8px}}
 
 .tgh-root .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;padding:30px 0 10px}
 @media(max-width:860px){.tgh-root .hero{grid-template-columns:1fr}}

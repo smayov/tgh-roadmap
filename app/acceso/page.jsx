@@ -90,12 +90,7 @@ const recuperar = async () => {
         <h1 style={{ color: "#0D3A28", marginBottom: 6 }}>Acceso</h1>
         <p style={{ color: "#5C6B61", marginBottom: 18, fontSize: 14 }}>Entra o crea tu cuenta.</p>
         <input style={input} type="email" placeholder="Correo electrónico" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <input style={input} type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} />
-        <button onClick={entrar} style={btn}>Iniciar sesión</button>
-        <button onClick={registrar} style={btnGhost}>Crear cuenta</button>
-        <button onClick={entrar} style={btn}>Iniciar sesión</button>
-        <button onClick={registrar} style={btnGhost}>Crear cuenta</button>
-        <button onClick={recuperar} style={linkOlvido}>¿Olvidaste tu contraseña?</button>
+        <input style={input} type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} />      
         <button onClick={entrar} style={btn}>Iniciar sesión</button>
         <button onClick={registrar} style={btnGhost}>Crear cuenta</button>
         <button onClick={recuperar} style={linkOlvido}>¿Olvidaste tu contraseña?</button>

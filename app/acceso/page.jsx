@@ -49,7 +49,15 @@ export default function Acceso() {
     if (error) { setMsg("Error: " + error.message); return; }
     await redirigirSegunEstado(data.user);
   };
-
+const recuperar = async () => {
+    setMsg("");
+    if (!email) { setMsg("Error: escribe tu correo arriba y vuelve a pulsar."); return; }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: "https://www.tugestorhostelero.es/recuperar",
+    });
+    if (error) { setMsg("Error: " + error.message); return; }
+    setMsg("Te hemos enviado un correo para restablecer tu contraseña. Revisa tu bandeja de entrada.");
+  };
   const salir = async () => { await supabase.auth.signOut(); setMsg(""); };
 
   // Decide a dónde llevar al usuario: panel si ya tiene módulos, catálogo si no.
@@ -85,6 +93,12 @@ export default function Acceso() {
         <input style={input} type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} />
         <button onClick={entrar} style={btn}>Iniciar sesión</button>
         <button onClick={registrar} style={btnGhost}>Crear cuenta</button>
+        <button onClick={entrar} style={btn}>Iniciar sesión</button>
+        <button onClick={registrar} style={btnGhost}>Crear cuenta</button>
+        <button onClick={recuperar} style={linkOlvido}>¿Olvidaste tu contraseña?</button>
+        <button onClick={entrar} style={btn}>Iniciar sesión</button>
+        <button onClick={registrar} style={btnGhost}>Crear cuenta</button>
+        <button onClick={recuperar} style={linkOlvido}>¿Olvidaste tu contraseña?</button>
         {msg && <p style={{ marginTop: 14, fontSize: 14, color: msg.startsWith("Error") ? "#c0392b" : "#1A6A48" }}>{msg}</p>}
       </div>
     </div>
@@ -96,3 +110,4 @@ const card = { background: "#fff", padding: 36, borderRadius: 18, width: 340, ma
 const input = { width: "100%", padding: "11px 12px", borderRadius: 10, border: "1px solid #ccc", fontSize: 15, marginBottom: 12, boxSizing: "border-box" };
 const btn = { width: "100%", padding: 12, borderRadius: 10, border: "none", background: "#1A6A48", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", marginBottom: 10 };
 const btnGhost = { width: "100%", padding: 12, borderRadius: 10, border: "1.5px solid #2E9E6B", background: "transparent", color: "#1A6A48", fontWeight: 700, fontSize: 15, cursor: "pointer" };
+const linkOlvido = { width: "100%", marginTop: 14, background: "none", border: "none", color: "#5C6B61", fontSize: 13.5, textDecoration: "underline", cursor: "pointer" };

@@ -8,10 +8,6 @@ import { supabase } from '../../supabaseClient';
 /* ============================================================
    PÁGINA DE MÓDULO
    Ruta: /modulo/[modulo]  (ej. /modulo/verifactu, /modulo/stock)
-   - Comprueba que el usuario tiene ese módulo activo.
-   - Si no lo tiene, lo manda al catálogo.
-   - Para módulos sin funcionalidad real: muestra "en desarrollo".
-   - Para 'stock': muestra el panel funcional (PanelStock).
    ============================================================ */
 const INFO = {
   verifactu: {
@@ -81,14 +77,13 @@ const INFO = {
   },
 };
 
-// Módulos que ya tienen panel funcional propio (no muestran "en desarrollo")
 const MODULOS_FUNCIONALES = ['stock'];
 
 export default function ModuloPage() {
   const router = useRouter();
   const params = useParams();
   const moduloId = params?.modulo;
-  const [estado, setEstado] = useState('cargando'); // cargando | ok | sin-acceso
+  const [estado, setEstado] = useState('cargando');
   const [negocioId, setNegocioId] = useState(null);
   const [userId, setUserId] = useState(null);
 
@@ -122,7 +117,6 @@ export default function ModuloPage() {
 
   const info = INFO[moduloId];
 
-  // Módulo desconocido
   if (!info) {
     return (
       <div style={wrap}>
@@ -138,7 +132,6 @@ export default function ModuloPage() {
     return <div style={wrap}><p style={{ color: '#B7C7BE' }}>Cargando…</p></div>;
   }
 
-  // No tiene el módulo contratado
   if (estado === 'sin-acceso') {
     return (
       <div style={wrap}>
@@ -153,7 +146,6 @@ export default function ModuloPage() {
     );
   }
 
-  // Tiene acceso y es un módulo funcional real (ej. Stock)
   if (MODULOS_FUNCIONALES.includes(moduloId)) {
     return (
       <div style={wrapPanel}>
@@ -165,21 +157,15 @@ export default function ModuloPage() {
     );
   }
 
-  // Tiene acceso: pantalla "próximamente" (resto de módulos)
   return (
     <div style={wrap}>
       <div style={container}>
-
         <button onClick={() => router.push('/panel')} style={backLink}>← Volver al panel</button>
-
         <div style={{ fontSize: 54, marginBottom: 10 }}>{info.icono}</div>
         <div style={eyebrow}>{info.sub}</div>
         <h1 style={h1Big}>{info.titulo}</h1>
-
         <div style={badge}>🛠️ En desarrollo · disponible muy pronto</div>
-
         <p style={intro}>{info.intro}</p>
-
         <div style={featBox}>
           <div style={featTitle}>Lo que podrás hacer aquí:</div>
           {info.features.map((f, i) => (
@@ -189,7 +175,6 @@ export default function ModuloPage() {
             </div>
           ))}
         </div>
-
         <p style={reassure}>
           Tu módulo ya está activo y reservado. Te avisaremos en cuanto esté listo para usar.
         </p>
@@ -198,10 +183,40 @@ export default function ModuloPage() {
         Ver vista previa del módulo →
       </button>
     )}
-
        </div>
     </div>
   );
+}
+
+/* ============================================================
+   ICONO AUTOMÁTICO POR NOMBRE DE PRODUCTO
+   ============================================================ */
+const MAPA_EMOJIS = [
+  { keywords: ['cerveza', 'birra'], emoji: '🍺' },
+  { keywords: ['vino', 'cava', 'champan', 'champán'], emoji: '🍷' },
+  { keywords: ['agua'], emoji: '💧' },
+  { keywords: ['refresco', 'cola', 'fanta', 'sprite', 'tonica', 'tónica'], emoji: '🥤' },
+  { keywords: ['cafe', 'café'], emoji: '☕' },
+  { keywords: ['leche'], emoji: '🥛' },
+  { keywords: ['aceite'], emoji: '🫒' },
+  { keywords: ['harina', 'pan', 'trigo', 'masa'], emoji: '🌾' },
+  { keywords: ['carne', 'pollo', 'ternera', 'cerdo', 'jamon', 'jamón'], emoji: '🥩' },
+  { keywords: ['pescado', 'marisco', 'gamba', 'atun', 'atún'], emoji: '🐟' },
+  { keywords: ['fruta', 'manzana', 'naranja', 'platano', 'plátano', 'limon', 'limón'], emoji: '🍎' },
+  { keywords: ['verdura', 'lechuga', 'tomate', 'cebolla', 'ensalada'], emoji: '🥬' },
+  { keywords: ['queso'], emoji: '🧀' },
+  { keywords: ['huevo'], emoji: '🥚' },
+  { keywords: ['hielo'], emoji: '🧊' },
+  { keywords: ['servilleta', 'papel', 'vaso', 'desechable'], emoji: '🧻' },
+  { keywords: ['limpieza', 'detergente', 'jabon', 'jabón', 'lejia', 'lejía'], emoji: '🧼' },
+];
+
+function adivinarEmoji(nombre) {
+  const n = (nombre || '').toLowerCase();
+  for (const { keywords, emoji } of MAPA_EMOJIS) {
+    if (keywords.some((k) => n.includes(k))) return emoji;
+  }
+  return '📦';
 }
 
 /* ============================================================
@@ -212,23 +227,22 @@ function PanelStock({ negocioId, userId, info }) {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
 
-  // formulario alta de producto
   const [mostrarAlta, setMostrarAlta] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [nuevaUnidad, setNuevaUnidad] = useState('ud');
   const [nuevoMinimo, setNuevoMinimo] = useState('0');
   const [guardandoAlta, setGuardandoAlta] = useState(false);
 
-  // formulario detallado de movimiento (por producto)
-  const [detalleAbierto, setDetalleAbierto] = useState(null); // producto_id o null
+  const [detalleAbierto, setDetalleAbierto] = useState(null);
   const [detTipo, setDetTipo] = useState('entrada');
   const [detCantidad, setDetCantidad] = useState('1');
   const [detMotivo, setDetMotivo] = useState('');
   const [guardandoMov, setGuardandoMov] = useState(false);
 
-  // importación desde CSV / Excel
   const [importando, setImportando] = useState(false);
-  const [resultadoImport, setResultadoImport] = useState(null); // { creados, actualizados, errores }
+  const [resultadoImport, setResultadoImport] = useState(null);
+
+  const [subiendoFotoId, setSubiendoFotoId] = useState(null); // producto_id cuya foto se está subiendo
 
   useEffect(() => {
     if (negocioId) cargarProductos();
@@ -262,10 +276,7 @@ function PanelStock({ negocioId, userId, info }) {
       creado_por: userId,
     });
 
-    if (error) {
-      setError(error.message);
-      return;
-    }
+    if (error) { setError(error.message); return; }
     if (!silencioso) await cargarProductos();
   }
 
@@ -301,7 +312,6 @@ function PanelStock({ negocioId, userId, info }) {
     setDetMotivo('');
   }
 
-  // -------- Importación CSV / Excel --------
   async function handleImportarArchivo(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -316,7 +326,6 @@ function PanelStock({ negocioId, userId, info }) {
       const hoja = wb.Sheets[wb.SheetNames[0]];
       const filas = XLSX.utils.sheet_to_json(hoja, { defval: '' });
 
-      // productos ya existentes, para comparar por nombre
       const existentes = await cargarProductos();
 
       let creados = 0, actualizados = 0, errores = 0;
@@ -367,7 +376,42 @@ function PanelStock({ negocioId, userId, info }) {
       setError('No se pudo leer el archivo: ' + err.message);
     } finally {
       setImportando(false);
-      e.target.value = ''; // permite volver a subir el mismo archivo si hace falta
+      e.target.value = '';
+    }
+  }
+
+  // -------- Subida de foto de producto --------
+  async function handleSubirFoto(producto_id, file) {
+    if (!file) return;
+    setSubiendoFotoId(producto_id);
+    setError(null);
+
+    try {
+      const ext = file.name.split('.').pop();
+      const ruta = `${negocioId}/${producto_id}-${Date.now()}.${ext}`;
+
+      const { error: errUpload } = await supabase.storage
+        .from('productos-stock')
+        .upload(ruta, file, { upsert: true });
+
+      if (errUpload) { setError(errUpload.message); return; }
+
+      const { data: publicData } = supabase.storage
+        .from('productos-stock')
+        .getPublicUrl(ruta);
+
+      const { error: errUpd } = await supabase
+        .from('productos')
+        .update({ imagen_url: publicData.publicUrl })
+        .eq('id', producto_id);
+
+      if (errUpd) { setError(errUpd.message); return; }
+
+      await cargarProductos();
+    } catch (err) {
+      setError('No se pudo subir la foto: ' + err.message);
+    } finally {
+      setSubiendoFotoId(null);
     }
   }
 
@@ -377,9 +421,7 @@ function PanelStock({ negocioId, userId, info }) {
       <div style={eyebrow}>{info.sub}</div>
       <h1 style={h1Big}>{info.titulo}</h1>
 
-      {error && (
-        <div style={errorBox}>{error}</div>
-      )}
+      {error && <div style={errorBox}>{error}</div>}
 
       <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}>
 
@@ -454,10 +496,31 @@ function PanelStock({ negocioId, userId, info }) {
 
         {!cargando && productos.map((p) => {
           const bajoMinimo = p.stock_actual <= p.stock_minimo;
+          const subiendo = subiendoFotoId === p.id;
           return (
             <div key={p.id} style={{ ...productoRow, borderColor: bajoMinimo ? '#E0725A' : 'rgba(255,255,255,.1)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+
+                {/* --- icono / foto a la izquierda --- */}
+                <div style={fotoWrap}>
+                  {p.imagen_url ? (
+                    <img src={p.imagen_url} alt={p.nombre} style={fotoImg} />
+                  ) : (
+                    <div style={fotoEmoji}>{adivinarEmoji(p.nombre)}</div>
+                  )}
+                  <label style={fotoBtnCam} title="Subir foto de este producto">
+                    {subiendo ? '…' : '📷'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      disabled={subiendo}
+                      onChange={(e) => handleSubirFoto(p.id, e.target.files?.[0])}
+                    />
+                  </label>
+                </div>
+
+                <div style={{ flex: 1 }}>
                   <div style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>{p.nombre}</div>
                   <div style={{ color: bajoMinimo ? '#E0725A' : '#8FA79A', fontSize: 13, marginTop: 2 }}>
                     {p.stock_actual} {p.unidad} en stock
@@ -527,20 +590,12 @@ function PanelStock({ negocioId, userId, info }) {
 
 /* ===================== estilos ===================== */
 const wrap = {
-  minHeight: '100vh',
-  background: '#0D3A28',
-  display: 'grid',
-  placeItems: 'center',
-  fontFamily: 'system-ui, -apple-system, sans-serif',
-  padding: 24,
-  boxSizing: 'border-box',
+  minHeight: '100vh', background: '#0D3A28', display: 'grid', placeItems: 'center',
+  fontFamily: 'system-ui, -apple-system, sans-serif', padding: 24, boxSizing: 'border-box',
 };
 const wrapPanel = {
-  minHeight: '100vh',
-  background: '#0D3A28',
-  fontFamily: 'system-ui, -apple-system, sans-serif',
-  padding: '24px 16px 60px',
-  boxSizing: 'border-box',
+  minHeight: '100vh', background: '#0D3A28', fontFamily: 'system-ui, -apple-system, sans-serif',
+  padding: '24px 16px 60px', boxSizing: 'border-box',
 };
 const container = { width: '100%', maxWidth: 640, textAlign: 'center' };
 const containerPanel = { width: '100%', maxWidth: 720, margin: '0 auto', textAlign: 'center' };
@@ -578,7 +633,6 @@ const btnLima = { width: '100%', padding: 13, borderRadius: 10, border: 'none', 
 const btnGhost = { width: '100%', padding: 12, borderRadius: 10, border: '1.5px solid rgba(255,255,255,.25)', background: 'transparent', color: '#EAF3EC', fontWeight: 700, fontSize: 15, cursor: 'pointer' };
 const btnPreview = { marginTop: 20, background: 'rgba(188,224,90,.16)', color: '#BCE05A', border: '1.5px solid rgba(188,224,90,.4)', borderRadius: 10, padding: '11px 22px', fontSize: 15, fontWeight: 700, cursor: 'pointer' };
 
-/* --- estilos propios del panel de stock --- */
 const errorBox = {
   background: 'rgba(224,114,90,.15)', color: '#E0725A', padding: '10px 16px',
   borderRadius: 10, maxWidth: 640, margin: '0 auto 16px', fontSize: 14,
@@ -616,4 +670,23 @@ const hintImport = { color: '#8FA79A', fontSize: 13, marginBottom: 16, lineHeigh
 const resultBox = {
   background: 'rgba(127,201,164,.12)', color: '#7FC9A4', padding: '10px 16px',
   borderRadius: 10, fontSize: 14, marginBottom: 16,
+};
+
+/* --- foto / icono de producto --- */
+const fotoWrap = {
+  position: 'relative', width: 52, height: 52, flexShrink: 0,
+};
+const fotoImg = {
+  width: 52, height: 52, borderRadius: 12, objectFit: 'cover',
+  border: '1px solid rgba(255,255,255,.15)',
+};
+const fotoEmoji = {
+  width: 52, height: 52, borderRadius: 12, background: 'rgba(255,255,255,.06)',
+  display: 'grid', placeItems: 'center', fontSize: 26,
+  border: '1px solid rgba(255,255,255,.1)',
+};
+const fotoBtnCam = {
+  position: 'absolute', bottom: -6, right: -6, width: 22, height: 22, borderRadius: '50%',
+  background: '#1A6A48', display: 'grid', placeItems: 'center', fontSize: 11,
+  cursor: 'pointer', border: '2px solid #0D3A28',
 };

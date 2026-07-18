@@ -53,6 +53,19 @@ const MODULOS = [
     },
   },
   {
+    id: 'stock', icono: '📦', iconClass: 'stock', tag: 'Módulo',
+    img: 'https://images.pexels.com/photos/4483773/pexels-photo-4483773.jpeg?auto=compress&cs=tinysrgb&w=800',
+    titulo: 'Control de Stock',
+    desc: 'Controla tu almacén sin complicaciones: altas y bajas de producto, alertas de stock mínimo y visibilidad de lo que tienes en cada momento.',
+    feats: ['Altas y bajas manuales', 'Alertas de stock mínimo', 'Inventario por producto', 'Historial de movimientos'],
+    precioMes: 22,
+    detalle: {
+      demo: 'stock',
+      ext: 'Registra entradas y salidas de producto de forma manual y ten siempre a mano cuánto te queda de cada referencia. El sistema te avisa cuando un producto baja de su umbral mínimo, para que nunca te quedes sin stock en el momento crítico.',
+      benes: ['Visibilidad en tiempo real de existencias por producto', 'Alertas automáticas de stock mínimo', 'Historial de movimientos (entradas/salidas) por fecha', 'Base lista para escalar a pedidos automáticos o consumo por receta más adelante'],
+    },
+  },
+  {
     id: 'empleados', icono: '🕒', iconClass: 'emp', tag: 'Módulo',
     img: 'https://images.pexels.com/photos/30120987/pexels-photo-30120987.jpeg?auto=compress&cs=tinysrgb&w=800',
     titulo: 'Gestión de Empleados',
@@ -666,4 +679,5 @@ const STYLES = `
 .tgh-root .sf-mini-box{flex:1;background:#F7F5EC;border-radius:12px;padding:11px 14px}
 .tgh-root .sf-mini-box span{display:block;font-size:.8rem;color:var(--muted)}
 .tgh-root .sf-mini-box b{font-family:'Bricolage Grotesque';font-weight:800;font-size:1.35rem;color:var(--green-900)}
+.tgh-root .stock{background-color:#ccfbf1;color:#0d9488}
 `;

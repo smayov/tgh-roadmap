@@ -599,8 +599,12 @@ function PanelStock({ negocioId, userId, info }) {
               <select value={nuevaUnidad} onChange={(e) => setNuevaUnidad(e.target.value)} style={input}>
                 <option value="ud">unidades</option>
                 <option value="kg">kg</option>
+                <option value="g">gramos</option>
                 <option value="l">litros</option>
+                <option value="ml">mililitros</option>
                 <option value="caja">cajas</option>
+                <option value="botella">botellas</option>
+                <option value="barril">barriles</option>
               </select>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>

@@ -203,7 +203,8 @@ const MAPA_EMOJIS = [
   { keywords: ['carne', 'pollo', 'ternera', 'cerdo', 'jamon', 'jamón'], emoji: '🥩' },
   { keywords: ['pescado', 'marisco', 'gamba', 'atun', 'atún'], emoji: '🐟' },
   { keywords: ['fruta', 'manzana', 'naranja', 'platano', 'plátano', 'limon', 'limón'], emoji: '🍎' },
-  { keywords: ['verdura', 'lechuga', 'tomate', 'cebolla', 'ensalada'], emoji: '🥬' },
+  { keywords: ['tomate'], emoji: '🍅' },
+  { keywords: ['verdura', 'lechuga', 'cebolla', 'ensalada'], emoji: '🥬' },
   { keywords: ['queso'], emoji: '🧀' },
   { keywords: ['huevo'], emoji: '🥚' },
   { keywords: ['hielo'], emoji: '🧊' },
@@ -231,6 +232,7 @@ function PanelStock({ negocioId, userId, info }) {
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [nuevaUnidad, setNuevaUnidad] = useState('ud');
   const [nuevoMinimo, setNuevoMinimo] = useState('0');
+  const [nuevoInicial, setNuevoInicial] = useState('0');
   const [guardandoAlta, setGuardandoAlta] = useState(false);
 
   const [detalleAbierto, setDetalleAbierto] = useState(null);
@@ -290,6 +292,7 @@ function PanelStock({ negocioId, userId, info }) {
       nombre: nuevoNombre.trim(),
       unidad: nuevaUnidad,
       stock_minimo: Number(nuevoMinimo) || 0,
+      stock_actual: Number(nuevoInicial) || 0,
     });
 
     setGuardandoAlta(false);
@@ -298,6 +301,7 @@ function PanelStock({ negocioId, userId, info }) {
     setNuevoNombre('');
     setNuevaUnidad('ud');
     setNuevoMinimo('0');
+    setNuevoInicial('0');
     setMostrarAlta(false);
     await cargarProductos();
   }
@@ -476,7 +480,15 @@ function PanelStock({ negocioId, userId, info }) {
               <input
                 type="number"
                 min="0"
-                placeholder="Stock mínimo"
+                placeholder="Stock inicial (cuánto tienes ahora)"
+                value={nuevoInicial}
+                onChange={(e) => setNuevoInicial(e.target.value)}
+                style={{ ...input, flex: 1 }}
+              />
+              <input
+                type="number"
+                min="0"
+                placeholder="Stock mínimo (aviso)"
                 value={nuevoMinimo}
                 onChange={(e) => setNuevoMinimo(e.target.value)}
                 style={{ ...input, flex: 1 }}

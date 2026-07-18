@@ -240,6 +240,8 @@ function PanelStock({ negocioId, userId, info }) {
   const [detCantidad, setDetCantidad] = useState('1');
   const [detMotivo, setDetMotivo] = useState('');
   const [guardandoMov, setGuardandoMov] = useState(false);
+  const [edMinimo, setEdMinimo] = useState('0');
+  const [guardandoMinimo, setGuardandoMinimo] = useState(false);
 
   const [importando, setImportando] = useState(false);
   const [resultadoImport, setResultadoImport] = useState(null);
@@ -332,6 +334,23 @@ function PanelStock({ negocioId, userId, info }) {
 
     if (error) { setError(error.message); return; }
     await cargarProductos();
+  }
+
+  async function handleGuardarMinimo(producto_id) {
+    setGuardandoMinimo(true);
+    const { error } = await supabase
+      .from('productos')
+      .update({ stock_minimo: Number(edMinimo) || 0 })
+      .eq('id', producto_id);
+    setGuardandoMinimo(false);
+    if (error) { setError(error.message); return; }
+    await cargarProductos();
+  }
+
+  function abrirDetalle(p) {
+    if (detalleAbierto === p.id) { setDetalleAbierto(null); return; }
+    setDetalleAbierto(p.id);
+    setEdMinimo(String(p.stock_minimo));
   }
 
   async function handleImportarArchivo(e) {
@@ -600,7 +619,7 @@ function PanelStock({ negocioId, userId, info }) {
                     </button>
                   </div>
                   <button
-                    onClick={() => setDetalleAbierto(detalleAbierto === p.id ? null : p.id)}
+                    onClick={() => abrirDetalle(p)}
                     style={btnDetalle}
                   >
                     {detalleAbierto === p.id ? 'Cerrar' : 'Detalle'}
@@ -610,6 +629,27 @@ function PanelStock({ negocioId, userId, info }) {
 
               {detalleAbierto === p.id && (
                 <div style={detalleBox}>
+                  <div>
+                    <label style={campoLabel}>Stock mínimo (aviso de reposición)</label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        type="number" min="0" value={edMinimo}
+                        onChange={(e) => setEdMinimo(e.target.value)}
+                        style={{ ...input, width: 90 }}
+                      />
+                      <button
+                        onClick={() => handleGuardarMinimo(p.id)}
+                        disabled={guardandoMinimo}
+                        style={{ ...btnDetalle, padding: '9px 16px', width: 'auto' }}
+                      >
+                        {guardandoMinimo ? 'Guardando…' : 'Guardar mínimo'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={separadorDetalle} />
+
+                  <label style={campoLabel}>Registrar movimiento</label>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <select value={detTipo} onChange={(e) => setDetTipo(e.target.value)} style={{ ...input, flex: 1 }}>
                       <option value="entrada">Entrada</option>
@@ -703,6 +743,9 @@ const input = {
 };
 const campoLabel = {
   display: 'block', color: '#8FA79A', fontSize: 12, fontWeight: 600, marginBottom: 5,
+};
+const separadorDetalle = {
+  height: 1, background: 'rgba(255,255,255,.08)', margin: '4px 0',
 };
 const productoRow = {
   background: 'rgba(255,255,255,.05)', border: '1.5px solid rgba(255,255,255,.1)',

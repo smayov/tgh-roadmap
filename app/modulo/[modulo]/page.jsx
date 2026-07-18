@@ -220,6 +220,25 @@ function adivinarEmoji(nombre) {
   return '📦';
 }
 
+// Normaliza una cabecera de columna: sin tildes, en minúsculas, sin espacios sobrantes.
+// Así "Stock Mínimo", "stock_minimo", "STOCK MINIMO" se reconocen todas igual.
+function normalizarCabecera(clave) {
+  return clave
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quita tildes
+    .replace(/\s+/g, '_');
+}
+
+function normalizarFila(fila) {
+  const out = {};
+  for (const [k, v] of Object.entries(fila)) {
+    out[normalizarCabecera(k)] = v;
+  }
+  return out;
+}
+
 /* ============================================================
    PANEL DE STOCK — funcionalidad real
    ============================================================ */
@@ -353,6 +372,17 @@ function PanelStock({ negocioId, userId, info }) {
     setEdMinimo(String(p.stock_minimo));
   }
 
+  function descargarPlantilla() {
+    const datos = [
+      { Nombre: 'Cerveza 33cl', Unidad: 'ud', 'Stock actual': 24, 'Stock mínimo': 6 },
+      { Nombre: 'Aceite de oliva', Unidad: 'l', 'Stock actual': 5, 'Stock mínimo': 2 },
+    ];
+    const hoja = XLSX.utils.json_to_sheet(datos);
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, hoja, 'productos');
+    XLSX.writeFile(libro, 'plantilla_stock_tgh.xlsx');
+  }
+
   async function handleImportarArchivo(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -365,19 +395,20 @@ function PanelStock({ negocioId, userId, info }) {
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { type: 'array' });
       const hoja = wb.Sheets[wb.SheetNames[0]];
-      const filas = XLSX.utils.sheet_to_json(hoja, { defval: '' });
+      const filasRaw = XLSX.utils.sheet_to_json(hoja, { defval: '' });
+      const filas = filasRaw.map(normalizarFila);
 
       const existentes = await cargarProductos();
 
       let creados = 0, actualizados = 0, errores = 0;
 
       for (const fila of filas) {
-        const nombre = String(fila.nombre ?? fila.Nombre ?? '').trim();
+        const nombre = String(fila.nombre ?? '').trim();
         if (!nombre) { errores++; continue; }
 
-        const unidad = String(fila.unidad ?? fila.Unidad ?? 'ud').trim() || 'ud';
-        const stockMinimo = Number(fila.stock_minimo ?? fila['Stock minimo'] ?? fila['stock mínimo'] ?? 0) || 0;
-        const stockActualDeseado = Number(fila.stock_actual ?? fila['Stock actual'] ?? fila['stock actual'] ?? 0) || 0;
+        const unidad = String(fila.unidad ?? 'ud').trim() || 'ud';
+        const stockMinimo = Number(fila.stock_minimo ?? 0) || 0;
+        const stockActualDeseado = Number(fila.stock_actual ?? 0) || 0;
 
         const existente = existentes.find(
           (p) => p.nombre.trim().toLowerCase() === nombre.toLowerCase()
@@ -466,6 +497,11 @@ function PanelStock({ negocioId, userId, info }) {
 
       <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}>
 
+        <p style={introAcciones}>
+          ¿Tienes pocos productos? Añádelos uno a uno con <b>"+ Añadir producto"</b>. ¿Tienes muchos (todo tu
+          almacén de golpe)? Usa la plantilla y súbela con <b>"Importar CSV / Excel"</b> — es más rápido.
+        </p>
+
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
           <button
             onClick={() => setMostrarAlta((v) => !v)}
@@ -484,11 +520,14 @@ function PanelStock({ negocioId, userId, info }) {
               style={{ display: 'none' }}
             />
           </label>
+
+          <button onClick={descargarPlantilla} style={btnImport}>
+            📥 Descargar plantilla
+          </button>
         </div>
 
         <p style={hintImport}>
-          Columnas esperadas: <code>nombre</code>, <code>unidad</code>, <code>stock_minimo</code>, <code>stock_actual</code>.
-          Si un producto ya existe (mismo nombre), se actualiza en vez de duplicarse.
+          Si subes un producto que ya tenías dado de alta (mismo nombre), se actualizará en vez de crear uno duplicado.
         </p>
 
         {resultadoImport && (
@@ -788,6 +827,7 @@ const btnImport = {
   fontWeight: 700, fontSize: 15, cursor: 'pointer',
 };
 const hintImport = { color: '#8FA79A', fontSize: 13, marginBottom: 16, lineHeight: 1.5 };
+const introAcciones = { color: '#C7D5CC', fontSize: 14, marginBottom: 14, lineHeight: 1.5 };
 const resultBox = {
   background: 'rgba(127,201,164,.12)', color: '#7FC9A4', padding: '10px 16px',
   borderRadius: 10, fontSize: 14, marginBottom: 16,

@@ -466,8 +466,20 @@ function PanelStock({ negocioId, userId, info }) {
                 </div>
 
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <button onClick={() => registrarMovimiento(p.id, 'salida', 1, null)} style={btnRound}>−</button>
-                  <button onClick={() => registrarMovimiento(p.id, 'entrada', 1, null)} style={btnRound}>+</button>
+                  <button
+                    onClick={() => registrarMovimiento(p.id, 'salida', 1, null)}
+                    style={btnRound}
+                    title="Restar 1 unidad del stock"
+                  >
+                    −1
+                  </button>
+                  <button
+                    onClick={() => registrarMovimiento(p.id, 'entrada', 1, null)}
+                    style={btnRound}
+                    title="Sumar 1 unidad al stock"
+                  >
+                    +1
+                  </button>
                   <button
                     onClick={() => setDetalleAbierto(detalleAbierto === p.id ? null : p.id)}
                     style={btnDetalle}
@@ -584,8 +596,8 @@ const productoRow = {
   borderRadius: 12, padding: '14px 16px', marginBottom: 10,
 };
 const btnRound = {
-  width: 32, height: 32, borderRadius: '50%', border: 'none',
-  background: 'rgba(255,255,255,.12)', color: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer',
+  minWidth: 40, height: 32, padding: '0 10px', borderRadius: 16, border: 'none',
+  background: 'rgba(255,255,255,.12)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
 };
 const btnDetalle = {
   padding: '7px 12px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,.2)',

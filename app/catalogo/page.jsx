@@ -10,7 +10,12 @@ import { supabase } from '../supabaseClient';
    FOTOS: campo "img" de cada módulo. Hero: ver HeroPhoto abajo.
    ============================================================ */
 const ANUAL_FACTOR = 10; // meses cobrados al año (12 - 2 gratis)
-const DESCUENTO_PACK = 0.25; // 25% de descuento al elegir TODOS los módulos. Cambia aquí el %.
+const DESCUENTO_PACK = 0.25; // 25% de descuento al elegir TODOS los módulos del pack. Cambia aquí el %.
+
+// Módulos que cuentan para el descuento de "suite completa".
+// Los que NO estén aquí (ej. 'stock') se cobran siempre aparte, a precio base.
+// ⚠️ Debe COINCIDIR con MODULOS_PACK de checkout.js. Si cambias uno, cambia el otro.
+const MODULOS_PACK_IDS = ['verifactu', 'facturacion', 'clientes', 'empleados', 'alertas'];
 
 const MODULOS = [
   {
@@ -230,6 +235,28 @@ function FacturaDemo() {
   );
 }
 
+function StockDemo() {
+  const [stock, setStock] = useState(24);
+  const minimo = 10;
+  return (
+    <div className="demo">
+      <div className="demo-label">Demo · control de stock</div>
+      <div className="client-card">
+        <div className="cc-name">Cerveza 33cl</div>
+        <div className="cc-visits">Stock actual: <b>{stock}</b> ud · mínimo {minimo}</div>
+        <div className="cc-bar"><span style={{ width: Math.min((stock / (minimo * 3)) * 100, 100) + '%', background: stock <= minimo ? '#c0492a' : undefined }} /></div>
+        <div className="cc-reward" style={{ color: stock <= minimo ? '#c0492a' : undefined }}>
+          {stock <= minimo ? '⚠️ Por debajo del mínimo, hay que reponer' : 'Stock saludable'}
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+        <button className="demo-btn" onClick={() => setStock((s) => Math.max(s - 1, 0))}>−1 (venta)</button>
+        <button className="demo-btn" onClick={() => setStock((s) => s + 12)}>+12 (reposición)</button>
+      </div>
+    </div>
+  );
+}
+
 function Demo({ m }) {
   switch (m.detalle.demo) {
     case 'ticket': return <TicketDemo />;
@@ -237,6 +264,7 @@ function Demo({ m }) {
     case 'fichaje': return <FichajeDemo />;
     case 'alertas': return <AlertasDemo />;
     case 'factura': return <FacturaDemo />;
+    case 'stock': return <StockDemo />;
     default: return null;
   }
 }
@@ -377,10 +405,16 @@ const cerrarSesion = async () => {
   const toggleOpen = (id) => setOpen((o) => ({ ...o, [id]: !o[id] }));
 
   const selIds = MODULOS.filter((m) => selected[m.id]);
-  const allSel = selIds.length === MODULOS.length;
-  const subtotal = selIds.reduce((t, m) => t + priceFor(m, cycle), 0);
-  const descuento = allSel ? Math.round(subtotal * DESCUENTO_PACK) : 0;
-  const total = subtotal - descuento;
+
+  // Separamos la selección: módulos que cuentan para el pack, y los que quedan fuera (ej. Stock)
+  const selPack = selIds.filter((m) => MODULOS_PACK_IDS.includes(m.id));
+  const selFuera = selIds.filter((m) => !MODULOS_PACK_IDS.includes(m.id));
+  const allSelPack = selPack.length === MODULOS_PACK_IDS.length && selPack.length > 0;
+
+  const subtotalPack = selPack.reduce((t, m) => t + priceFor(m, cycle), 0);
+  const descuento = allSelPack ? Math.round(subtotalPack * DESCUENTO_PACK) : 0;
+  const subtotalFuera = selFuera.reduce((t, m) => t + priceFor(m, cycle), 0);
+  const total = subtotalPack - descuento + subtotalFuera;
 
   const solicitar = () => {
     if (selIds.length === 0) { alert('Selecciona al menos un módulo para continuar.'); return; }
@@ -487,11 +521,11 @@ const pagar = async () => {
                       </div>
                     ))}
               </div>
-              {selIds.length > 0 && !allSel && (
-                <div className="pack-hint">Añade los {MODULOS.length} módulos y ahorra un {Math.round(DESCUENTO_PACK * 100)}%.</div>
+              {selPack.length > 0 && !allSelPack && (
+                <div className="pack-hint">Añade los {MODULOS_PACK_IDS.length} módulos del pack y ahorra un {Math.round(DESCUENTO_PACK * 100)}%.</div>
               )}
-              {allSel && (
-                <div className="sumrow pack"><span>Suite completa (−{Math.round(DESCUENTO_PACK * 100)}%)</span><span>−{fmt(descuento)} €</span></div>
+              {allSelPack && (
+                <div className="sumrow pack"><span>Pack de 5 módulos (−{Math.round(DESCUENTO_PACK * 100)}%)</span><span>−{fmt(descuento)} €</span></div>
               )}
               <div className="total">
                 <div><div className="lbl">Total · sin IVA</div></div>

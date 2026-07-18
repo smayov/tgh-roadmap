@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '../supabaseClient';
 
 /* ============================================================
    PÁGINA PÚBLICA "MONTA TU SUITE" (calculadora, sin login)
@@ -237,7 +238,15 @@ export default function PlanesPage() {
   const [cycle, setCycle] = useState('month');
   const [selected, setSelected] = useState({});
   const [open, setOpen] = useState({});
+  const [haySesion, setHaySesion] = useState(false);
 
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setHaySesion(!!data.session);
+    });
+  }, []);
+
+  const irAContratar = () => router.push(haySesion ? '/catalogo' : '/acceso');
   const toggleSel = (id) =>
     setSelected((s) => {
       const next = { ...s, [id]: !s[id] };
@@ -256,7 +265,7 @@ export default function PlanesPage() {
   const descuento = allSel ? Math.round(subtotal * DESCUENTO_PACK) : 0;
   const total = subtotal - descuento;
 
-  const irACrearCuenta = () => router.push('/acceso');
+ 
 
   return (
     <div className="tgh-root">
@@ -355,8 +364,8 @@ export default function PlanesPage() {
                 <div className="big">{fmt(total)} €<small>{cycle === 'month' ? '/mes' : '/año'}</small></div>
               </div>
               <div className="iva-note">Se añade el 21% de IVA en el pago.</div>
-              <button className="cta" onClick={irACrearCuenta}>Crear cuenta para contratar</button>
-              <div className="sim-note">Simulación sin compromiso · para contratar, crea tu cuenta</div>
+             <button className="cta" onClick={irAContratar}>{haySesion ? 'Ir a contratar' : 'Crear cuenta para contratar'}</button>
+             <div className="sim-note">{haySesion ? 'Ya tienes cuenta · pulsa para contratar' : 'Simulación sin compromiso · para contratar, crea tu cuenta'}</div>
               <button className="reset" onClick={() => setSelected({})}>Reiniciar selección</button>
             </div>
           </aside>

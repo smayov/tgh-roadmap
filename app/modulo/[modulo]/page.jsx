@@ -769,9 +769,10 @@ const stepperBtn = {
   fontSize: 18, fontWeight: 700, cursor: 'pointer', lineHeight: 1,
 };
 const stepperInput = {
-  width: 44, height: 32, border: 'none', borderLeft: '1px solid rgba(255,255,255,.15)',
+  width: 64, height: 32, border: 'none', borderLeft: '1px solid rgba(255,255,255,.15)',
   borderRight: '1px solid rgba(255,255,255,.15)', background: 'transparent', color: '#fff',
   fontSize: 14, fontWeight: 700, textAlign: 'center', outline: 'none', MozAppearance: 'textfield',
+  padding: '0 4px',
 };
 const btnDetalle = {
   padding: '7px 12px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,.2)',

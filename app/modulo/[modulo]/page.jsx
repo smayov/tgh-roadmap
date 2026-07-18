@@ -388,7 +388,15 @@ function PanelStock({ negocioId, userId, info }) {
     );
     if (!confirmado) return;
 
-    // Revertimos el efecto que tuvo este movimiento sobre el stock actual
+    // Primero borramos el movimiento. Si esto falla (ej. falta de permiso),
+    // no tocamos el stock, para no dejar el número descuadrado.
+    const { error: errDel } = await supabase
+      .from('movimientos_stock')
+      .delete()
+      .eq('id', movimiento.id);
+    if (errDel) { setError(errDel.message); return; }
+
+    // Solo si el borrado fue bien, revertimos su efecto sobre el stock actual
     const ajuste = movimiento.tipo === 'entrada' ? -movimiento.cantidad : movimiento.cantidad;
     const nuevoStock = producto.stock_actual + ajuste;
 
@@ -397,12 +405,6 @@ function PanelStock({ negocioId, userId, info }) {
       .update({ stock_actual: nuevoStock })
       .eq('id', producto.id);
     if (errStock) { setError(errStock.message); return; }
-
-    const { error: errDel } = await supabase
-      .from('movimientos_stock')
-      .delete()
-      .eq('id', movimiento.id);
-    if (errDel) { setError(errDel.message); return; }
 
     await cargarProductos();
     await cargarHistorial(producto.id);

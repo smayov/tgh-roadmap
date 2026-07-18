@@ -261,6 +261,8 @@ function PanelStock({ negocioId, userId, info }) {
   const [guardandoMov, setGuardandoMov] = useState(false);
   const [edMinimo, setEdMinimo] = useState('0');
   const [guardandoMinimo, setGuardandoMinimo] = useState(false);
+  const [historial, setHistorial] = useState([]);
+  const [cargandoHistorial, setCargandoHistorial] = useState(false);
 
   const [importando, setImportando] = useState(false);
   const [resultadoImport, setResultadoImport] = useState(null);
@@ -306,6 +308,7 @@ function PanelStock({ negocioId, userId, info }) {
 
     if (error) { setError(error.message); return; }
     if (!silencioso) await cargarProductos();
+    if (detalleAbierto === producto_id) await cargarHistorial(producto_id);
   }
 
   async function handleAltaProducto(e) {
@@ -366,10 +369,24 @@ function PanelStock({ negocioId, userId, info }) {
     await cargarProductos();
   }
 
+  async function cargarHistorial(producto_id) {
+    setCargandoHistorial(true);
+    const { data, error } = await supabase
+      .from('movimientos_stock')
+      .select('*')
+      .eq('producto_id', producto_id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (!error) setHistorial(data || []);
+    setCargandoHistorial(false);
+  }
+
   function abrirDetalle(p) {
     if (detalleAbierto === p.id) { setDetalleAbierto(null); return; }
     setDetalleAbierto(p.id);
     setEdMinimo(String(p.stock_minimo));
+    cargarHistorial(p.id);
   }
 
   function descargarPlantilla() {
@@ -713,6 +730,32 @@ function PanelStock({ negocioId, userId, info }) {
                   >
                     {guardandoMov ? 'Guardando…' : 'Registrar movimiento'}
                   </button>
+
+                  <div style={separadorDetalle} />
+
+                  <label style={campoLabel}>Historial de movimientos</label>
+                  {cargandoHistorial && (
+                    <p style={{ color: '#8FA79A', fontSize: 13 }}>Cargando historial…</p>
+                  )}
+                  {!cargandoHistorial && historial.length === 0 && (
+                    <p style={{ color: '#8FA79A', fontSize: 13 }}>Aún no hay movimientos registrados para este producto.</p>
+                  )}
+                  {!cargandoHistorial && historial.length > 0 && (
+                    <div style={historialLista}>
+                      {historial.map((m) => (
+                        <div key={m.id} style={historialFila}>
+                          <span style={{ ...historialTipo, color: m.tipo === 'entrada' ? '#7FC9A4' : '#E0725A' }}>
+                            {m.tipo === 'entrada' ? '↑ Entrada' : '↓ Salida'}
+                          </span>
+                          <span style={historialCantidad}>{m.cantidad} {p.unidad}</span>
+                          <span style={historialMotivo}>{m.motivo || '—'}</span>
+                          <span style={historialFecha}>
+                            {new Date(m.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -786,6 +829,17 @@ const campoLabel = {
 const separadorDetalle = {
   height: 1, background: 'rgba(255,255,255,.08)', margin: '4px 0',
 };
+const historialLista = {
+  display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto',
+};
+const historialFila = {
+  display: 'grid', gridTemplateColumns: '80px 60px 1fr auto', gap: 10, alignItems: 'center',
+  background: 'rgba(255,255,255,.04)', borderRadius: 8, padding: '7px 10px', fontSize: 12.5,
+};
+const historialTipo = { fontWeight: 700, whiteSpace: 'nowrap' };
+const historialCantidad = { color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' };
+const historialMotivo = { color: '#B7C7BE', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+const historialFecha = { color: '#8FA79A', whiteSpace: 'nowrap', fontSize: 11.5 };
 const productoRow = {
   background: 'rgba(255,255,255,.05)', border: '1.5px solid rgba(255,255,255,.1)',
   borderRadius: 12, padding: '16px 40px 16px 16px', marginBottom: 10,

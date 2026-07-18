@@ -597,14 +597,14 @@ function PanelStock({ negocioId, userId, info }) {
             <div>
               <label style={campoLabel}>Unidad</label>
               <select value={nuevaUnidad} onChange={(e) => setNuevaUnidad(e.target.value)} style={input}>
-                <option value="ud">unidades</option>
-                <option value="kg">kg</option>
-                <option value="g">gramos</option>
-                <option value="l">litros</option>
-                <option value="ml">mililitros</option>
-                <option value="caja">cajas</option>
-                <option value="botella">botellas</option>
-                <option value="barril">barriles</option>
+                <option style={optionStyle} value="ud">unidades</option>
+                <option style={optionStyle} value="kg">kg</option>
+                <option style={optionStyle} value="g">gramos</option>
+                <option style={optionStyle} value="l">litros</option>
+                <option style={optionStyle} value="ml">mililitros</option>
+                <option style={optionStyle} value="caja">cajas</option>
+                <option style={optionStyle} value="botella">botellas</option>
+                <option style={optionStyle} value="barril">barriles</option>
               </select>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
@@ -740,8 +740,8 @@ function PanelStock({ negocioId, userId, info }) {
                   <label style={campoLabel}>Registrar movimiento</label>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <select value={detTipo} onChange={(e) => setDetTipo(e.target.value)} style={{ ...input, flex: 1 }}>
-                      <option value="entrada">Entrada</option>
-                      <option value="salida">Salida</option>
+                      <option style={optionStyle} value="entrada">Entrada</option>
+                      <option style={optionStyle} value="salida">Salida</option>
                     </select>
                     <input
                       type="number" min="1" value={detCantidad}
@@ -862,6 +862,9 @@ const input = {
   padding: '10px 12px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,.15)',
   background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 14, outline: 'none',
 };
+// El menú desplegable de <select> usa fondo blanco del sistema operativo (no hereda el tema oscuro),
+// así que el texto de las opciones debe ser oscuro para que se lea.
+const optionStyle = { color: '#15271C', background: '#fff' };
 const campoLabel = {
   display: 'block', color: '#8FA79A', fontSize: 12, fontWeight: 600, marginBottom: 5,
 };

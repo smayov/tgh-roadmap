@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import * as XLSX from 'xlsx';
 import { supabase } from '../../supabaseClient';
 
 /* ============================================================
@@ -225,6 +226,10 @@ function PanelStock({ negocioId, userId, info }) {
   const [detMotivo, setDetMotivo] = useState('');
   const [guardandoMov, setGuardandoMov] = useState(false);
 
+  // importación desde CSV / Excel
+  const [importando, setImportando] = useState(false);
+  const [resultadoImport, setResultadoImport] = useState(null); // { creados, actualizados, errores }
+
   useEffect(() => {
     if (negocioId) cargarProductos();
   }, [negocioId]);
@@ -241,9 +246,10 @@ function PanelStock({ negocioId, userId, info }) {
     if (error) setError(error.message);
     else setProductos(data || []);
     setCargando(false);
+    return data || [];
   }
 
-  async function registrarMovimiento(producto_id, tipo, cantidad, motivo) {
+  async function registrarMovimiento(producto_id, tipo, cantidad, motivo, silencioso = false) {
     const cant = Number(cantidad);
     if (!cant || cant <= 0) return;
 
@@ -260,7 +266,7 @@ function PanelStock({ negocioId, userId, info }) {
       setError(error.message);
       return;
     }
-    await cargarProductos();
+    if (!silencioso) await cargarProductos();
   }
 
   async function handleAltaProducto(e) {
@@ -295,6 +301,76 @@ function PanelStock({ negocioId, userId, info }) {
     setDetMotivo('');
   }
 
+  // -------- Importación CSV / Excel --------
+  async function handleImportarArchivo(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportando(true);
+    setResultadoImport(null);
+    setError(null);
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: 'array' });
+      const hoja = wb.Sheets[wb.SheetNames[0]];
+      const filas = XLSX.utils.sheet_to_json(hoja, { defval: '' });
+
+      // productos ya existentes, para comparar por nombre
+      const existentes = await cargarProductos();
+
+      let creados = 0, actualizados = 0, errores = 0;
+
+      for (const fila of filas) {
+        const nombre = String(fila.nombre ?? fila.Nombre ?? '').trim();
+        if (!nombre) { errores++; continue; }
+
+        const unidad = String(fila.unidad ?? fila.Unidad ?? 'ud').trim() || 'ud';
+        const stockMinimo = Number(fila.stock_minimo ?? fila['Stock minimo'] ?? fila['stock mínimo'] ?? 0) || 0;
+        const stockActualDeseado = Number(fila.stock_actual ?? fila['Stock actual'] ?? fila['stock actual'] ?? 0) || 0;
+
+        const existente = existentes.find(
+          (p) => p.nombre.trim().toLowerCase() === nombre.toLowerCase()
+        );
+
+        if (existente) {
+          const { error: errUpd } = await supabase
+            .from('productos')
+            .update({ unidad, stock_minimo: stockMinimo })
+            .eq('id', existente.id);
+
+          if (errUpd) { errores++; continue; }
+
+          const diff = stockActualDeseado - existente.stock_actual;
+          if (diff > 0) {
+            await registrarMovimiento(existente.id, 'entrada', diff, 'Ajuste por importación', true);
+          } else if (diff < 0) {
+            await registrarMovimiento(existente.id, 'salida', Math.abs(diff), 'Ajuste por importación', true);
+          }
+          actualizados++;
+        } else {
+          const { error: errIns } = await supabase.from('productos').insert({
+            negocio_id: negocioId,
+            nombre,
+            unidad,
+            stock_minimo: stockMinimo,
+            stock_actual: stockActualDeseado,
+          });
+          if (errIns) { errores++; continue; }
+          creados++;
+        }
+      }
+
+      setResultadoImport({ creados, actualizados, errores });
+      await cargarProductos();
+    } catch (err) {
+      setError('No se pudo leer el archivo: ' + err.message);
+    } finally {
+      setImportando(false);
+      e.target.value = ''; // permite volver a subir el mismo archivo si hace falta
+    }
+  }
+
   return (
     <div>
       <div style={{ fontSize: 44, marginBottom: 6 }}>{info.icono}</div>
@@ -307,12 +383,37 @@ function PanelStock({ negocioId, userId, info }) {
 
       <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}>
 
-        <button
-          onClick={() => setMostrarAlta((v) => !v)}
-          style={{ ...btnLima, width: 'auto', padding: '10px 20px', marginBottom: 20 }}
-        >
-          {mostrarAlta ? 'Cancelar' : '+ Añadir producto'}
-        </button>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+          <button
+            onClick={() => setMostrarAlta((v) => !v)}
+            style={{ ...btnLima, width: 'auto', padding: '10px 20px' }}
+          >
+            {mostrarAlta ? 'Cancelar' : '+ Añadir producto'}
+          </button>
+
+          <label style={btnImport}>
+            {importando ? 'Importando…' : '📤 Importar CSV / Excel'}
+            <input
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              onChange={handleImportarArchivo}
+              disabled={importando}
+              style={{ display: 'none' }}
+            />
+          </label>
+        </div>
+
+        <p style={hintImport}>
+          Columnas esperadas: <code>nombre</code>, <code>unidad</code>, <code>stock_minimo</code>, <code>stock_actual</code>.
+          Si un producto ya existe (mismo nombre), se actualiza en vez de duplicarse.
+        </p>
+
+        {resultadoImport && (
+          <div style={resultBox}>
+            ✅ {resultadoImport.creados} creados · 🔄 {resultadoImport.actualizados} actualizados
+            {resultadoImport.errores > 0 && ` · ⚠️ ${resultadoImport.errores} filas con error`}
+          </div>
+        )}
 
         {mostrarAlta && (
           <form onSubmit={handleAltaProducto} style={altaBox}>
@@ -493,4 +594,14 @@ const btnDetalle = {
 const detalleBox = {
   marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.08)',
   display: 'flex', flexDirection: 'column', gap: 8,
+};
+const btnImport = {
+  display: 'inline-flex', alignItems: 'center', padding: '10px 20px', borderRadius: 10,
+  border: '1.5px solid rgba(255,255,255,.25)', background: 'transparent', color: '#EAF3EC',
+  fontWeight: 700, fontSize: 15, cursor: 'pointer',
+};
+const hintImport = { color: '#8FA79A', fontSize: 13, marginBottom: 16, lineHeight: 1.5 };
+const resultBox = {
+  background: 'rgba(127,201,164,.12)', color: '#7FC9A4', padding: '10px 16px',
+  borderRadius: 10, fontSize: 14, marginBottom: 16,
 };

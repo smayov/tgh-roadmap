@@ -12,6 +12,7 @@ const PRECIOS = {
   clientes:    { nombre: "Gestión de Clientes", precioMes: 24 },
   empleados:   { nombre: "Gestión de Empleados", precioMes: 31 },
   alertas:     { nombre: "Alertas", precioMes: 10 },
+  stock:       { nombre: "Control de Stock", precioMes: 22 },
 };
 const ANUAL_FACTOR = 10;       // 12 meses - 2 gratis
 const DESCUENTO_PACK = 0.25;   // 25% al contratar TODOS los módulos

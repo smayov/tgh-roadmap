@@ -340,9 +340,9 @@ function PanelStock({ negocioId, userId, info }) {
     await registrarMovimiento(producto_id, detTipo, detCantidad, detMotivo);
     setGuardandoMov(false);
     setDetalleAbierto(null);
-    setDetTipo('entrada');
-    setDetCantidad('1');
     setDetMotivo('');
+    // La cantidad NO se resetea a 1: se mantiene el último valor usado,
+    // por si sueles registrar la misma cantidad varias veces seguidas (ej. cajas de 12).
   }
 
   async function handleEliminarProducto(producto) {
@@ -380,6 +380,32 @@ function PanelStock({ negocioId, userId, info }) {
 
     if (!error) setHistorial(data || []);
     setCargandoHistorial(false);
+  }
+
+  async function handleEliminarMovimiento(producto, movimiento) {
+    const confirmado = window.confirm(
+      `¿Eliminar este movimiento (${movimiento.tipo === 'entrada' ? 'Entrada' : 'Salida'} de ${movimiento.cantidad} ${producto.unidad})?\n\nEsto también revertirá su efecto en el stock actual del producto.`
+    );
+    if (!confirmado) return;
+
+    // Revertimos el efecto que tuvo este movimiento sobre el stock actual
+    const ajuste = movimiento.tipo === 'entrada' ? -movimiento.cantidad : movimiento.cantidad;
+    const nuevoStock = producto.stock_actual + ajuste;
+
+    const { error: errStock } = await supabase
+      .from('productos')
+      .update({ stock_actual: nuevoStock })
+      .eq('id', producto.id);
+    if (errStock) { setError(errStock.message); return; }
+
+    const { error: errDel } = await supabase
+      .from('movimientos_stock')
+      .delete()
+      .eq('id', movimiento.id);
+    if (errDel) { setError(errDel.message); return; }
+
+    await cargarProductos();
+    await cargarHistorial(producto.id);
   }
 
   function abrirDetalle(p) {
@@ -752,6 +778,13 @@ function PanelStock({ negocioId, userId, info }) {
                           <span style={historialFecha}>
                             {new Date(m.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
                           </span>
+                          <button
+                            onClick={() => handleEliminarMovimiento(p, m)}
+                            style={btnEliminarMov}
+                            title="Eliminar este movimiento (revierte el stock)"
+                          >
+                            🗑️
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -833,13 +866,17 @@ const historialLista = {
   display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto',
 };
 const historialFila = {
-  display: 'grid', gridTemplateColumns: '80px 60px 1fr auto', gap: 10, alignItems: 'center',
+  display: 'grid', gridTemplateColumns: '80px 60px 1fr auto auto', gap: 10, alignItems: 'center',
   background: 'rgba(255,255,255,.04)', borderRadius: 8, padding: '7px 10px', fontSize: 12.5,
 };
 const historialTipo = { fontWeight: 700, whiteSpace: 'nowrap' };
 const historialCantidad = { color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' };
 const historialMotivo = { color: '#B7C7BE', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
 const historialFecha = { color: '#8FA79A', whiteSpace: 'nowrap', fontSize: 11.5 };
+const btnEliminarMov = {
+  width: 24, height: 24, borderRadius: 6, border: 'none', background: 'rgba(224,114,90,.15)',
+  color: '#E0725A', fontSize: 11, cursor: 'pointer', display: 'grid', placeItems: 'center', flexShrink: 0,
+};
 const productoRow = {
   background: 'rgba(255,255,255,.05)', border: '1.5px solid rgba(255,255,255,.1)',
   borderRadius: 12, padding: '16px 40px 16px 16px', marginBottom: 10,

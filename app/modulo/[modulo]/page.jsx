@@ -463,36 +463,46 @@ function PanelStock({ negocioId, userId, info }) {
 
         {mostrarAlta && (
           <form onSubmit={handleAltaProducto} style={altaBox}>
-            <input
-              placeholder="Nombre del producto (ej. Cerveza 33cl)"
-              value={nuevoNombre}
-              onChange={(e) => setNuevoNombre(e.target.value)}
-              style={input}
-              required
-            />
-            <div style={{ display: 'flex', gap: 10 }}>
-              <select value={nuevaUnidad} onChange={(e) => setNuevaUnidad(e.target.value)} style={{ ...input, flex: 1 }}>
+            <div>
+              <label style={campoLabel}>Nombre del producto</label>
+              <input
+                placeholder="ej. Cerveza 33cl"
+                value={nuevoNombre}
+                onChange={(e) => setNuevoNombre(e.target.value)}
+                style={{ ...input, width: '100%' }}
+                required
+              />
+            </div>
+            <div>
+              <label style={campoLabel}>Unidad</label>
+              <select value={nuevaUnidad} onChange={(e) => setNuevaUnidad(e.target.value)} style={input}>
                 <option value="ud">unidades</option>
                 <option value="kg">kg</option>
                 <option value="l">litros</option>
                 <option value="caja">cajas</option>
               </select>
-              <input
-                type="number"
-                min="0"
-                placeholder="Stock inicial (cuánto tienes ahora)"
-                value={nuevoInicial}
-                onChange={(e) => setNuevoInicial(e.target.value)}
-                style={{ ...input, flex: 1 }}
-              />
-              <input
-                type="number"
-                min="0"
-                placeholder="Stock mínimo (aviso)"
-                value={nuevoMinimo}
-                onChange={(e) => setNuevoMinimo(e.target.value)}
-                style={{ ...input, flex: 1 }}
-              />
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <label style={campoLabel}>Stock inicial (cuánto tienes ahora)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={nuevoInicial}
+                  onChange={(e) => setNuevoInicial(e.target.value)}
+                  style={{ ...input, width: '100%' }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={campoLabel}>Stock mínimo (para avisarte)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={nuevoMinimo}
+                  onChange={(e) => setNuevoMinimo(e.target.value)}
+                  style={{ ...input, width: '100%' }}
+                />
+              </div>
             </div>
             <button type="submit" disabled={guardandoAlta} style={btnLima}>
               {guardandoAlta ? 'Guardando…' : 'Guardar producto'}
@@ -656,6 +666,9 @@ const altaBox = {
 const input = {
   padding: '10px 12px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,.15)',
   background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 14, outline: 'none',
+};
+const campoLabel = {
+  display: 'block', color: '#8FA79A', fontSize: 12, fontWeight: 600, marginBottom: 5,
 };
 const productoRow = {
   background: 'rgba(255,255,255,.05)', border: '1.5px solid rgba(255,255,255,.1)',

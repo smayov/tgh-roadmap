@@ -5,11 +5,12 @@ import { useRouter, useParams } from 'next/navigation';
 import { supabase } from '../../supabaseClient';
 
 /* ============================================================
-   PÁGINA "PRÓXIMAMENTE" DE CADA MÓDULO
-   Ruta: /modulo/[modulo]  (ej. /modulo/verifactu)
+   PÁGINA DE MÓDULO
+   Ruta: /modulo/[modulo]  (ej. /modulo/verifactu, /modulo/stock)
    - Comprueba que el usuario tiene ese módulo activo.
    - Si no lo tiene, lo manda al catálogo.
-   - Muestra un "en desarrollo" con lo que traerá el módulo.
+   - Para módulos sin funcionalidad real: muestra "en desarrollo".
+   - Para 'stock': muestra el panel funcional (PanelStock).
    ============================================================ */
 const INFO = {
   verifactu: {
@@ -72,18 +73,29 @@ const INFO = {
       'Recomendaciones para ajustar personal y stock',
     ],
   },
+  stock: {
+    icono: '📦',
+    titulo: 'Control de Stock',
+    sub: 'Inventario de almacén',
+  },
 };
+
+// Módulos que ya tienen panel funcional propio (no muestran "en desarrollo")
+const MODULOS_FUNCIONALES = ['stock'];
 
 export default function ModuloPage() {
   const router = useRouter();
   const params = useParams();
   const moduloId = params?.modulo;
   const [estado, setEstado] = useState('cargando'); // cargando | ok | sin-acceso
+  const [negocioId, setNegocioId] = useState(null);
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.replace('/acceso'); return; }
+      setUserId(user.id);
 
       const { data: negocio } = await supabase
         .from('negocios')
@@ -92,6 +104,7 @@ export default function ModuloPage() {
         .maybeSingle();
 
       if (!negocio) { router.replace('/catalogo'); return; }
+      setNegocioId(negocio.id);
 
       const { data: mods } = await supabase
         .from('modulos_activos')
@@ -139,7 +152,19 @@ export default function ModuloPage() {
     );
   }
 
-  // Tiene acceso: pantalla "próximamente"
+  // Tiene acceso y es un módulo funcional real (ej. Stock)
+  if (MODULOS_FUNCIONALES.includes(moduloId)) {
+    return (
+      <div style={wrapPanel}>
+        <div style={containerPanel}>
+          <button onClick={() => router.push('/panel')} style={backLink}>← Volver al panel</button>
+          <PanelStock negocioId={negocioId} userId={userId} info={info} />
+        </div>
+      </div>
+    );
+  }
+
+  // Tiene acceso: pantalla "próximamente" (resto de módulos)
   return (
     <div style={wrap}>
       <div style={container}>
@@ -178,6 +203,215 @@ export default function ModuloPage() {
   );
 }
 
+/* ============================================================
+   PANEL DE STOCK — funcionalidad real
+   ============================================================ */
+function PanelStock({ negocioId, userId, info }) {
+  const [productos, setProductos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState(null);
+
+  // formulario alta de producto
+  const [mostrarAlta, setMostrarAlta] = useState(false);
+  const [nuevoNombre, setNuevoNombre] = useState('');
+  const [nuevaUnidad, setNuevaUnidad] = useState('ud');
+  const [nuevoMinimo, setNuevoMinimo] = useState('0');
+  const [guardandoAlta, setGuardandoAlta] = useState(false);
+
+  // formulario detallado de movimiento (por producto)
+  const [detalleAbierto, setDetalleAbierto] = useState(null); // producto_id o null
+  const [detTipo, setDetTipo] = useState('entrada');
+  const [detCantidad, setDetCantidad] = useState('1');
+  const [detMotivo, setDetMotivo] = useState('');
+  const [guardandoMov, setGuardandoMov] = useState(false);
+
+  useEffect(() => {
+    if (negocioId) cargarProductos();
+  }, [negocioId]);
+
+  async function cargarProductos() {
+    setCargando(true);
+    const { data, error } = await supabase
+      .from('productos')
+      .select('*')
+      .eq('negocio_id', negocioId)
+      .eq('activo', true)
+      .order('nombre', { ascending: true });
+
+    if (error) setError(error.message);
+    else setProductos(data || []);
+    setCargando(false);
+  }
+
+  async function registrarMovimiento(producto_id, tipo, cantidad, motivo) {
+    const cant = Number(cantidad);
+    if (!cant || cant <= 0) return;
+
+    const { error } = await supabase.from('movimientos_stock').insert({
+      producto_id,
+      negocio_id: negocioId,
+      tipo,
+      cantidad: cant,
+      motivo: motivo || null,
+      creado_por: userId,
+    });
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    await cargarProductos();
+  }
+
+  async function handleAltaProducto(e) {
+    e.preventDefault();
+    if (!nuevoNombre.trim()) return;
+    setGuardandoAlta(true);
+
+    const { error } = await supabase.from('productos').insert({
+      negocio_id: negocioId,
+      nombre: nuevoNombre.trim(),
+      unidad: nuevaUnidad,
+      stock_minimo: Number(nuevoMinimo) || 0,
+    });
+
+    setGuardandoAlta(false);
+    if (error) { setError(error.message); return; }
+
+    setNuevoNombre('');
+    setNuevaUnidad('ud');
+    setNuevoMinimo('0');
+    setMostrarAlta(false);
+    await cargarProductos();
+  }
+
+  async function handleGuardarDetalle(producto_id) {
+    setGuardandoMov(true);
+    await registrarMovimiento(producto_id, detTipo, detCantidad, detMotivo);
+    setGuardandoMov(false);
+    setDetalleAbierto(null);
+    setDetTipo('entrada');
+    setDetCantidad('1');
+    setDetMotivo('');
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 44, marginBottom: 6 }}>{info.icono}</div>
+      <div style={eyebrow}>{info.sub}</div>
+      <h1 style={h1Big}>{info.titulo}</h1>
+
+      {error && (
+        <div style={errorBox}>{error}</div>
+      )}
+
+      <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}>
+
+        <button
+          onClick={() => setMostrarAlta((v) => !v)}
+          style={{ ...btnLima, width: 'auto', padding: '10px 20px', marginBottom: 20 }}
+        >
+          {mostrarAlta ? 'Cancelar' : '+ Añadir producto'}
+        </button>
+
+        {mostrarAlta && (
+          <form onSubmit={handleAltaProducto} style={altaBox}>
+            <input
+              placeholder="Nombre del producto (ej. Cerveza 33cl)"
+              value={nuevoNombre}
+              onChange={(e) => setNuevoNombre(e.target.value)}
+              style={input}
+              required
+            />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <select value={nuevaUnidad} onChange={(e) => setNuevaUnidad(e.target.value)} style={{ ...input, flex: 1 }}>
+                <option value="ud">unidades</option>
+                <option value="kg">kg</option>
+                <option value="l">litros</option>
+                <option value="caja">cajas</option>
+              </select>
+              <input
+                type="number"
+                min="0"
+                placeholder="Stock mínimo"
+                value={nuevoMinimo}
+                onChange={(e) => setNuevoMinimo(e.target.value)}
+                style={{ ...input, flex: 1 }}
+              />
+            </div>
+            <button type="submit" disabled={guardandoAlta} style={btnLima}>
+              {guardandoAlta ? 'Guardando…' : 'Guardar producto'}
+            </button>
+          </form>
+        )}
+
+        {cargando && <p style={{ color: '#B7C7BE' }}>Cargando inventario…</p>}
+
+        {!cargando && productos.length === 0 && (
+          <p style={{ color: '#B7C7BE' }}>Aún no has añadido ningún producto.</p>
+        )}
+
+        {!cargando && productos.map((p) => {
+          const bajoMinimo = p.stock_actual <= p.stock_minimo;
+          return (
+            <div key={p.id} style={{ ...productoRow, borderColor: bajoMinimo ? '#E0725A' : 'rgba(255,255,255,.1)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>{p.nombre}</div>
+                  <div style={{ color: bajoMinimo ? '#E0725A' : '#8FA79A', fontSize: 13, marginTop: 2 }}>
+                    {p.stock_actual} {p.unidad} en stock
+                    {bajoMinimo && ' · por debajo del mínimo'}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <button onClick={() => registrarMovimiento(p.id, 'salida', 1, null)} style={btnRound}>−</button>
+                  <button onClick={() => registrarMovimiento(p.id, 'entrada', 1, null)} style={btnRound}>+</button>
+                  <button
+                    onClick={() => setDetalleAbierto(detalleAbierto === p.id ? null : p.id)}
+                    style={btnDetalle}
+                  >
+                    {detalleAbierto === p.id ? 'Cerrar' : 'Detalle'}
+                  </button>
+                </div>
+              </div>
+
+              {detalleAbierto === p.id && (
+                <div style={detalleBox}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <select value={detTipo} onChange={(e) => setDetTipo(e.target.value)} style={{ ...input, flex: 1 }}>
+                      <option value="entrada">Entrada</option>
+                      <option value="salida">Salida</option>
+                    </select>
+                    <input
+                      type="number" min="1" value={detCantidad}
+                      onChange={(e) => setDetCantidad(e.target.value)}
+                      style={{ ...input, width: 90 }}
+                    />
+                  </div>
+                  <input
+                    placeholder="Motivo (opcional): compra, merma, ajuste…"
+                    value={detMotivo}
+                    onChange={(e) => setDetMotivo(e.target.value)}
+                    style={input}
+                  />
+                  <button
+                    onClick={() => handleGuardarDetalle(p.id)}
+                    disabled={guardandoMov}
+                    style={{ ...btnLima, padding: '9px 16px', width: 'auto' }}
+                  >
+                    {guardandoMov ? 'Guardando…' : 'Registrar movimiento'}
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ===================== estilos ===================== */
 const wrap = {
   minHeight: '100vh',
@@ -188,7 +422,15 @@ const wrap = {
   padding: 24,
   boxSizing: 'border-box',
 };
+const wrapPanel = {
+  minHeight: '100vh',
+  background: '#0D3A28',
+  fontFamily: 'system-ui, -apple-system, sans-serif',
+  padding: '24px 16px 60px',
+  boxSizing: 'border-box',
+};
 const container = { width: '100%', maxWidth: 640, textAlign: 'center' };
+const containerPanel = { width: '100%', maxWidth: 720, margin: '0 auto', textAlign: 'center' };
 const card = { background: '#124A34', borderRadius: 18, padding: 40, width: 380, maxWidth: '92vw', textAlign: 'center' };
 
 const backLink = {
@@ -222,3 +464,33 @@ const btn = { width: '100%', padding: 12, borderRadius: 10, border: 'none', back
 const btnLima = { width: '100%', padding: 13, borderRadius: 10, border: 'none', background: '#BCE05A', color: '#0D3A28', fontWeight: 800, fontSize: 15, cursor: 'pointer', marginBottom: 10 };
 const btnGhost = { width: '100%', padding: 12, borderRadius: 10, border: '1.5px solid rgba(255,255,255,.25)', background: 'transparent', color: '#EAF3EC', fontWeight: 700, fontSize: 15, cursor: 'pointer' };
 const btnPreview = { marginTop: 20, background: 'rgba(188,224,90,.16)', color: '#BCE05A', border: '1.5px solid rgba(188,224,90,.4)', borderRadius: 10, padding: '11px 22px', fontSize: 15, fontWeight: 700, cursor: 'pointer' };
+
+/* --- estilos propios del panel de stock --- */
+const errorBox = {
+  background: 'rgba(224,114,90,.15)', color: '#E0725A', padding: '10px 16px',
+  borderRadius: 10, maxWidth: 640, margin: '0 auto 16px', fontSize: 14,
+};
+const altaBox = {
+  background: 'rgba(255,255,255,.05)', borderRadius: 14, padding: 18,
+  display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20,
+};
+const input = {
+  padding: '10px 12px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,.15)',
+  background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 14, outline: 'none',
+};
+const productoRow = {
+  background: 'rgba(255,255,255,.05)', border: '1.5px solid rgba(255,255,255,.1)',
+  borderRadius: 12, padding: '14px 16px', marginBottom: 10,
+};
+const btnRound = {
+  width: 32, height: 32, borderRadius: '50%', border: 'none',
+  background: 'rgba(255,255,255,.12)', color: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer',
+};
+const btnDetalle = {
+  padding: '7px 12px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,.2)',
+  background: 'transparent', color: '#B7C7BE', fontSize: 13, cursor: 'pointer',
+};
+const detalleBox = {
+  marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.08)',
+  display: 'flex', flexDirection: 'column', gap: 8,
+};

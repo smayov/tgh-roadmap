@@ -16,6 +16,7 @@ const MODULOS = [
   { id: "verifactu",   icono: "🧾", titulo: "VeriFactu",          sub: "Cumplimiento fiscal" },
   { id: "facturacion", icono: "📄", titulo: "Facturación Pro",    sub: "Presupuestos y facturas" },
   { id: "clientes",    icono: "👥", titulo: "Gestión de Clientes", sub: "CRM y fidelización" },
+  { id: "stock", icono: "📦", titulo: "Control de Stock", sub: "Inventario de almacén" },
   { id: "empleados",   icono: "🕒", titulo: "Gestión de Empleados", sub: "Fichajes y turnos" },
   { id: "alertas",     icono: "🌦️", titulo: "Alertas",            sub: "Avisos que afectan al negocio" },
 ];

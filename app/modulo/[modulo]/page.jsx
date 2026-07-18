@@ -246,6 +246,11 @@ function PanelStock({ negocioId, userId, info }) {
 
   const [subiendoFotoId, setSubiendoFotoId] = useState(null); // producto_id cuya foto se está subiendo
 
+  // cantidad editable del contador rápido +/- (por producto)
+  const [cantidades, setCantidades] = useState({});
+  const getCantidad = (id) => cantidades[id] ?? 1;
+  const setCantidad = (id, val) => setCantidades((c) => ({ ...c, [id]: val }));
+
   useEffect(() => {
     if (negocioId) cargarProductos();
   }, [negocioId]);
@@ -551,20 +556,29 @@ function PanelStock({ negocioId, userId, info }) {
                 </div>
 
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <button
-                    onClick={() => registrarMovimiento(p.id, 'salida', 1, null)}
-                    style={btnRound}
-                    title="Restar 1 unidad del stock"
-                  >
-                    −1
-                  </button>
-                  <button
-                    onClick={() => registrarMovimiento(p.id, 'entrada', 1, null)}
-                    style={btnRound}
-                    title="Sumar 1 unidad al stock"
-                  >
-                    +1
-                  </button>
+                  <div style={stepperBox}>
+                    <button
+                      onClick={() => registrarMovimiento(p.id, 'salida', getCantidad(p.id), null)}
+                      style={stepperBtn}
+                      title={`Restar ${getCantidad(p.id)} del stock`}
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      min="1"
+                      value={getCantidad(p.id)}
+                      onChange={(e) => setCantidad(p.id, e.target.value)}
+                      style={stepperInput}
+                    />
+                    <button
+                      onClick={() => registrarMovimiento(p.id, 'entrada', getCantidad(p.id), null)}
+                      style={stepperBtn}
+                      title={`Sumar ${getCantidad(p.id)} al stock`}
+                    >
+                      +
+                    </button>
+                  </div>
                   <button
                     onClick={() => setDetalleAbierto(detalleAbierto === p.id ? null : p.id)}
                     style={btnDetalle}
@@ -677,6 +691,19 @@ const productoRow = {
 const btnRound = {
   minWidth: 40, height: 32, padding: '0 10px', borderRadius: 16, border: 'none',
   background: 'rgba(255,255,255,.12)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+};
+const stepperBox = {
+  display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,.08)',
+  borderRadius: 20, border: '1px solid rgba(255,255,255,.15)', overflow: 'hidden',
+};
+const stepperBtn = {
+  width: 30, height: 32, border: 'none', background: 'transparent', color: '#fff',
+  fontSize: 18, fontWeight: 700, cursor: 'pointer', lineHeight: 1,
+};
+const stepperInput = {
+  width: 44, height: 32, border: 'none', borderLeft: '1px solid rgba(255,255,255,.15)',
+  borderRight: '1px solid rgba(255,255,255,.15)', background: 'transparent', color: '#fff',
+  fontSize: 14, fontWeight: 700, textAlign: 'center', outline: 'none', MozAppearance: 'textfield',
 };
 const btnDetalle = {
   padding: '7px 12px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,.2)',

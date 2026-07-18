@@ -364,8 +364,8 @@ export default function PlanesPage() {
                 <div className="big">{fmt(total)} €<small>{cycle === 'month' ? '/mes' : '/año'}</small></div>
               </div>
               <div className="iva-note">Se añade el 21% de IVA en el pago.</div>
-             <button className="cta" onClick={irAContratar}>{haySesion ? 'Ir a contratar' : 'Crear cuenta para contratar'}</button>
-             <div className="sim-note">{haySesion ? 'Ya tienes cuenta · pulsa para contratar' : 'Simulación sin compromiso · para contratar, crea tu cuenta'}</div>
+             <button className="cta" onClick={irAContratar}>{haySesion ? 'Ir a contratar' : 'Entrar o crear cuenta'}</button>
+<div className="sim-note">{haySesion ? 'Ya has iniciado sesión · elige tus módulos y contrata' : '¿Ya eres cliente? Entra. ¿Eres nuevo? Crea tu cuenta gratis en 1 minuto.'}</div>
               <button className="reset" onClick={() => setSelected({})}>Reiniciar selección</button>
             </div>
           </aside>

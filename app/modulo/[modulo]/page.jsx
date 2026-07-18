@@ -321,6 +321,19 @@ function PanelStock({ negocioId, userId, info }) {
     setDetMotivo('');
   }
 
+  async function handleEliminarProducto(producto) {
+    const confirmado = window.confirm(`¿Eliminar "${producto.nombre}" de tu inventario?\n\nNo se borrará el historial de movimientos, solo dejará de aparecer en la lista.`);
+    if (!confirmado) return;
+
+    const { error } = await supabase
+      .from('productos')
+      .update({ activo: false })
+      .eq('id', producto.id);
+
+    if (error) { setError(error.message); return; }
+    await cargarProductos();
+  }
+
   async function handleImportarArchivo(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -525,7 +538,14 @@ function PanelStock({ negocioId, userId, info }) {
           const bajoMinimo = p.stock_actual <= p.stock_minimo;
           const subiendo = subiendoFotoId === p.id;
           return (
-            <div key={p.id} style={{ ...productoRow, borderColor: bajoMinimo ? '#E0725A' : 'rgba(255,255,255,.1)' }}>
+            <div key={p.id} style={{ ...productoRow, borderColor: bajoMinimo ? '#E0725A' : 'rgba(255,255,255,.1)', position: 'relative' }}>
+              <button
+                onClick={() => handleEliminarProducto(p)}
+                style={btnEliminar}
+                title="Eliminar este producto"
+              >
+                🗑️
+              </button>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
 
                 {/* --- icono / foto a la izquierda --- */}
@@ -686,7 +706,12 @@ const campoLabel = {
 };
 const productoRow = {
   background: 'rgba(255,255,255,.05)', border: '1.5px solid rgba(255,255,255,.1)',
-  borderRadius: 12, padding: '14px 16px', marginBottom: 10,
+  borderRadius: 12, padding: '16px 40px 16px 16px', marginBottom: 10,
+};
+const btnEliminar = {
+  position: 'absolute', top: 10, right: 10, width: 26, height: 26, borderRadius: 8,
+  border: 'none', background: 'rgba(224,114,90,.15)', color: '#E0725A', fontSize: 13,
+  cursor: 'pointer', display: 'grid', placeItems: 'center', opacity: 0.8,
 };
 const btnRound = {
   minWidth: 40, height: 32, padding: '0 10px', borderRadius: 16, border: 'none',

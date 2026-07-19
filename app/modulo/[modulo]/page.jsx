@@ -496,10 +496,13 @@ function PanelStock({ negocioId, userId, info }) {
       const existentes = await cargarProductos();
 
       let creados = 0, actualizados = 0, errores = 0;
+      const detalleCreados = [];
+      const detalleActualizados = [];
+      const detalleErrores = [];
 
       for (const fila of filas) {
         const nombre = String(fila.nombre ?? '').trim();
-        if (!nombre) { errores++; continue; }
+        if (!nombre) { errores++; detalleErrores.push('Una fila sin nombre de producto'); continue; }
 
         const unidad = String(fila.unidad ?? 'ud').trim() || 'ud';
         const stockMinimo = Number(fila.stock_minimo ?? 0) || 0;
@@ -515,7 +518,7 @@ function PanelStock({ negocioId, userId, info }) {
             .update({ unidad, stock_minimo: stockMinimo })
             .eq('id', existente.id);
 
-          if (errUpd) { errores++; continue; }
+          if (errUpd) { errores++; detalleErrores.push(`${nombre}: ${errUpd.message}`); continue; }
 
           const diff = stockActualDeseado - existente.stock_actual;
           if (diff > 0) {
@@ -524,6 +527,12 @@ function PanelStock({ negocioId, userId, info }) {
             await registrarMovimiento(existente.id, 'salida', Math.abs(diff), motivoImport, true);
           }
           actualizados++;
+          detalleActualizados.push({
+            nombre, unidad,
+            antes: existente.stock_actual,
+            despues: stockActualDeseado,
+            diff,
+          });
         } else {
           const { error: errIns } = await supabase.from('productos').insert({
             negocio_id: negocioId,
@@ -532,12 +541,13 @@ function PanelStock({ negocioId, userId, info }) {
             stock_minimo: stockMinimo,
             stock_actual: stockActualDeseado,
           });
-          if (errIns) { errores++; continue; }
+          if (errIns) { errores++; detalleErrores.push(`${nombre}: ${errIns.message}`); continue; }
           creados++;
+          detalleCreados.push({ nombre, unidad, stock: stockActualDeseado });
         }
       }
 
-      setResultadoImport({ creados, actualizados, errores });
+      setResultadoImport({ creados, actualizados, errores, detalleCreados, detalleActualizados, detalleErrores });
       await cargarProductos();
     } catch (err) {
       setError('No se pudo leer el archivo: ' + err.message);
@@ -627,8 +637,42 @@ function PanelStock({ negocioId, userId, info }) {
 
         {resultadoImport && (
           <div style={resultBox}>
-            ✅ {resultadoImport.creados} creados · 🔄 {resultadoImport.actualizados} actualizados
-            {resultadoImport.errores > 0 && ` · ⚠️ ${resultadoImport.errores} filas con error`}
+            <div style={{ marginBottom: resultadoImport.detalleCreados.length || resultadoImport.detalleActualizados.length ? 10 : 0 }}>
+              ✅ {resultadoImport.creados} creados · 🔄 {resultadoImport.actualizados} actualizados
+              {resultadoImport.errores > 0 && ` · ⚠️ ${resultadoImport.errores} filas con error`}
+            </div>
+
+            {resultadoImport.detalleCreados.length > 0 && (
+              <div style={{ marginBottom: 8 }}>
+                {resultadoImport.detalleCreados.map((d, i) => (
+                  <div key={i} style={importDetalleFila}>
+                    <span style={{ color: '#7FC9A4' }}>+ nuevo</span> {d.nombre} — {d.stock} {d.unidad}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {resultadoImport.detalleActualizados.length > 0 && (
+              <div style={{ marginBottom: 8 }}>
+                {resultadoImport.detalleActualizados.map((d, i) => (
+                  <div key={i} style={importDetalleFila}>
+                    <span style={{ color: d.diff > 0 ? '#7FC9A4' : d.diff < 0 ? '#E0A92A' : '#8FA79A' }}>
+                      {d.diff > 0 ? '↑' : d.diff < 0 ? '↓' : '='}
+                    </span>{' '}
+                    {d.nombre} — {d.antes} → {d.despues} {d.unidad}
+                    {d.diff !== 0 && ` (${d.diff > 0 ? '+' : ''}${d.diff})`}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {resultadoImport.detalleErrores.length > 0 && (
+              <div>
+                {resultadoImport.detalleErrores.map((msg, i) => (
+                  <div key={i} style={{ ...importDetalleFila, color: '#E0725A' }}>⚠️ {msg}</div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1028,6 +1072,9 @@ const introAcciones = { color: '#C7D5CC', fontSize: 14, marginBottom: 14, lineHe
 const resultBox = {
   background: 'rgba(127,201,164,.12)', color: '#7FC9A4', padding: '10px 16px',
   borderRadius: 10, fontSize: 14, marginBottom: 16,
+};
+const importDetalleFila = {
+  color: '#C7D5CC', fontSize: 13, padding: '3px 0',
 };
 
 /* --- foto / icono de producto --- */

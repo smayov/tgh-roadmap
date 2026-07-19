@@ -489,8 +489,8 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
 
   function descargarPlantilla() {
     const datos = [
-      { Nombre: 'Cerveza 33cl', Unidad: 'ud', 'Stock actual': 24, 'Stock mínimo': 6 },
-      { Nombre: 'Aceite de oliva', Unidad: 'l', 'Stock actual': 5, 'Stock mínimo': 2 },
+      { Nombre: 'Cerveza 33cl', Unidad: 'ud', 'Stock actual': 24, 'Stock mínimo': 6, 'Precio de coste': 0.85 },
+      { Nombre: 'Aceite de oliva', Unidad: 'l', 'Stock actual': 5, 'Stock mínimo': 2, 'Precio de coste': 3.20 },
     ];
     const hoja = XLSX.utils.json_to_sheet(datos);
     const libro = XLSX.utils.book_new();
@@ -530,14 +530,23 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
         const stockMinimo = Number(fila.stock_minimo ?? 0) || 0;
         const stockActualDeseado = Number(fila.stock_actual ?? 0) || 0;
 
+        // Coste: aceptamos varios nombres de columna posibles
+        const costoRaw = fila.costo_unitario ?? fila.costo ?? fila.coste ??
+          fila.precio_de_coste ?? fila.precio_coste ?? '';
+        const tieneCosto = String(costoRaw).trim() !== '';
+        const costoUnitario = tieneCosto ? Number(costoRaw) : null;
+
         const existente = existentes.find(
           (p) => p.nombre.trim().toLowerCase() === nombre.toLowerCase()
         );
 
         if (existente) {
+          const cambiosUpdate = { unidad, stock_minimo: stockMinimo };
+          if (tieneCosto) cambiosUpdate.costo_unitario = costoUnitario;
+
           const { error: errUpd } = await supabase
             .from('productos')
-            .update({ unidad, stock_minimo: stockMinimo })
+            .update(cambiosUpdate)
             .eq('id', existente.id);
 
           if (errUpd) { errores++; detalleErrores.push(`${nombre}: ${errUpd.message}`); continue; }
@@ -562,6 +571,7 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
             unidad,
             stock_minimo: stockMinimo,
             stock_actual: stockActualDeseado,
+            costo_unitario: costoUnitario,
           });
           if (errIns) { errores++; detalleErrores.push(`${nombre}: ${errIns.message}`); continue; }
           creados++;
@@ -675,6 +685,7 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
 
         <p style={hintImport}>
           Si subes un producto que ya tenías dado de alta (mismo nombre), se actualizará en vez de crear uno duplicado.
+          La plantilla incluye una columna de "Precio de coste" opcional, para cargar tus precios de golpe.
         </p>
 
         {resultadoImport && (
@@ -766,16 +777,21 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
               </div>
             </div>
             <div>
-              <label style={campoLabel}>Precio de coste por unidad (opcional, en €)</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="ej. 0.85"
-                value={nuevoCosto}
-                onChange={(e) => setNuevoCosto(e.target.value)}
-                style={{ ...input, width: '100%' }}
-              />
+              <label style={campoLabel}>Precio de coste por unidad (€)</label>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="ej. 0.85"
+                  value={nuevoCosto}
+                  onChange={(e) => setNuevoCosto(e.target.value)}
+                  style={{ ...input, width: 100, flexShrink: 0 }}
+                />
+                <span style={costoHint}>
+                  Opcional — puedes dejarlo en blanco ahora y añadirlo más adelante cuando te llegue la factura del proveedor.
+                </span>
+              </div>
             </div>
             <button type="submit" disabled={guardandoAlta} style={btnLima}>
               {guardandoAlta ? 'Guardando…' : 'Guardar producto'}
@@ -1338,6 +1354,9 @@ const input = {
 const optionStyle = { color: '#15271C', background: '#fff' };
 const campoLabel = {
   display: 'block', color: '#8FA79A', fontSize: 12, fontWeight: 600, marginBottom: 5,
+};
+const costoHint = {
+  color: '#8FA79A', fontSize: 12.5, lineHeight: 1.4,
 };
 const separadorDetalle = {
   height: 1, background: 'rgba(255,255,255,.08)', margin: '4px 0',

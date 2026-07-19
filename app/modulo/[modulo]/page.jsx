@@ -487,6 +487,8 @@ function PanelStock({ negocioId, userId, info }) {
       const filasRaw = XLSX.utils.sheet_to_json(hoja, { defval: '' });
       const filas = filasRaw.map(normalizarFila);
 
+      const motivoImport = `Ajuste por importación (${file.name})`;
+
       const existentes = await cargarProductos();
 
       let creados = 0, actualizados = 0, errores = 0;
@@ -513,9 +515,9 @@ function PanelStock({ negocioId, userId, info }) {
 
           const diff = stockActualDeseado - existente.stock_actual;
           if (diff > 0) {
-            await registrarMovimiento(existente.id, 'entrada', diff, 'Ajuste por importación', true);
+            await registrarMovimiento(existente.id, 'entrada', diff, motivoImport, true);
           } else if (diff < 0) {
-            await registrarMovimiento(existente.id, 'salida', Math.abs(diff), 'Ajuste por importación', true);
+            await registrarMovimiento(existente.id, 'salida', Math.abs(diff), motivoImport, true);
           }
           actualizados++;
         } else {

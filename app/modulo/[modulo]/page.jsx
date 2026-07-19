@@ -262,6 +262,10 @@ function PanelStock({ negocioId, userId, info }) {
   const [edMinimo, setEdMinimo] = useState('0');
   const [guardandoMinimo, setGuardandoMinimo] = useState(false);
   const [historial, setHistorial] = useState([]);
+  const [notas, setNotas] = useState([]);
+  const [cargandoNotas, setCargandoNotas] = useState(false);
+  const [nuevaNota, setNuevaNota] = useState('');
+  const [guardandoNota, setGuardandoNota] = useState(false);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
 
   const [importando, setImportando] = useState(false);
@@ -382,6 +386,45 @@ function PanelStock({ negocioId, userId, info }) {
     setCargandoHistorial(false);
   }
 
+  async function cargarNotas(producto_id) {
+    setCargandoNotas(true);
+    const { data, error } = await supabase
+      .from('notas_producto')
+      .select('*')
+      .eq('producto_id', producto_id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (!error) setNotas(data || []);
+    setCargandoNotas(false);
+  }
+
+  async function handleGuardarNota(producto_id) {
+    if (!nuevaNota.trim()) return;
+    setGuardandoNota(true);
+
+    const { error } = await supabase.from('notas_producto').insert({
+      producto_id,
+      negocio_id: negocioId,
+      nota: nuevaNota.trim(),
+      creado_por: userId,
+    });
+
+    setGuardandoNota(false);
+    if (error) { setError(error.message); return; }
+    setNuevaNota('');
+    await cargarNotas(producto_id);
+  }
+
+  async function handleEliminarNota(producto_id, nota) {
+    const confirmado = window.confirm('¿Eliminar esta anotación?');
+    if (!confirmado) return;
+
+    const { error } = await supabase.from('notas_producto').delete().eq('id', nota.id);
+    if (error) { setError(error.message); return; }
+    await cargarNotas(producto_id);
+  }
+
   async function handleEliminarMovimiento(producto, movimiento) {
     const confirmado = window.confirm(
       `¿Eliminar este movimiento (${movimiento.tipo === 'entrada' ? 'Entrada' : 'Salida'} de ${movimiento.cantidad} ${producto.unidad})?\n\nEsto también revertirá su efecto en el stock actual del producto.`
@@ -415,6 +458,7 @@ function PanelStock({ negocioId, userId, info }) {
     setDetalleAbierto(p.id);
     setEdMinimo(String(p.stock_minimo));
     cargarHistorial(p.id);
+    cargarNotas(p.id);
   }
 
   function descargarPlantilla() {
@@ -737,7 +781,7 @@ function PanelStock({ negocioId, userId, info }) {
 
                   <div style={separadorDetalle} />
 
-                  <label style={campoLabel}>Registrar movimiento</label>
+                  <label style={campoLabel}>Registrar movimiento (cambia el stock actual)</label>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <select value={detTipo} onChange={(e) => setDetTipo(e.target.value)} style={{ ...input, flex: 1 }}>
                       <option style={optionStyle} value="entrada">Entrada</option>
@@ -762,6 +806,48 @@ function PanelStock({ negocioId, userId, info }) {
                   >
                     {guardandoMov ? 'Guardando…' : 'Registrar movimiento'}
                   </button>
+
+                  <div style={separadorDetalle} />
+
+                  <label style={campoLabel}>Anotación (no afecta al stock)</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      placeholder='Ej. "Faltan dos cajas, pendiente de revisar con el proveedor"'
+                      value={nuevaNota}
+                      onChange={(e) => setNuevaNota(e.target.value)}
+                      style={{ ...input, flex: 1 }}
+                    />
+                    <button
+                      onClick={() => handleGuardarNota(p.id)}
+                      disabled={guardandoNota}
+                      style={{ ...btnDetalle, padding: '9px 16px', width: 'auto' }}
+                    >
+                      {guardandoNota ? 'Guardando…' : 'Guardar nota'}
+                    </button>
+                  </div>
+
+                  {cargandoNotas && (
+                    <p style={{ color: '#8FA79A', fontSize: 13 }}>Cargando anotaciones…</p>
+                  )}
+                  {!cargandoNotas && notas.length > 0 && (
+                    <div style={historialLista}>
+                      {notas.map((n) => (
+                        <div key={n.id} style={notaFila}>
+                          <span style={notaTexto}>{n.nota}</span>
+                          <span style={historialFecha}>
+                            {new Date(n.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          <button
+                            onClick={() => handleEliminarNota(p.id, n)}
+                            style={btnEliminarMov}
+                            title="Eliminar esta anotación"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   <div style={separadorDetalle} />
 
@@ -886,6 +972,11 @@ const btnEliminarMov = {
   width: 24, height: 24, borderRadius: 6, border: 'none', background: 'rgba(224,114,90,.15)',
   color: '#E0725A', fontSize: 11, cursor: 'pointer', display: 'grid', placeItems: 'center', flexShrink: 0,
 };
+const notaFila = {
+  display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 10, alignItems: 'center',
+  background: 'rgba(255,255,255,.04)', borderRadius: 8, padding: '8px 10px', fontSize: 12.5,
+};
+const notaTexto = { color: '#EAF3EC' };
 const productoRow = {
   background: 'rgba(255,255,255,.05)', border: '1.5px solid rgba(255,255,255,.1)',
   borderRadius: 12, padding: '16px 40px 16px 16px', marginBottom: 10,

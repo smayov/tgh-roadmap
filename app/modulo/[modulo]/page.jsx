@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { supabase } from '../../supabaseClient';
 
 /* ============================================================
@@ -85,6 +87,7 @@ export default function ModuloPage() {
   const moduloId = params?.modulo;
   const [estado, setEstado] = useState('cargando');
   const [negocioId, setNegocioId] = useState(null);
+  const [negocioNombre, setNegocioNombre] = useState('');
   const [userId, setUserId] = useState(null);
 
   useEffect(() => {
@@ -95,12 +98,13 @@ export default function ModuloPage() {
 
       const { data: negocio } = await supabase
         .from('negocios')
-        .select('id')
+        .select('id, nombre')
         .eq('propietario', user.id)
         .maybeSingle();
 
       if (!negocio) { router.replace('/catalogo'); return; }
       setNegocioId(negocio.id);
+      setNegocioNombre(negocio.nombre || '');
 
       const { data: mods } = await supabase
         .from('modulos_activos')
@@ -151,7 +155,7 @@ export default function ModuloPage() {
       <div style={wrapPanel}>
         <div style={containerPanel}>
           <button onClick={() => router.push('/panel')} style={backLink}>← Volver al panel</button>
-          <PanelStock negocioId={negocioId} userId={userId} info={info} />
+          <PanelStock negocioId={negocioId} negocioNombre={negocioNombre} userId={userId} info={info} />
         </div>
       </div>
     );
@@ -246,7 +250,7 @@ function normalizarFila(fila) {
 /* ============================================================
    PANEL DE STOCK — funcionalidad real
    ============================================================ */
-function PanelStock({ negocioId, userId, info }) {
+function PanelStock({ negocioId, negocioNombre, userId, info }) {
   const [productos, setProductos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
@@ -636,7 +640,7 @@ function PanelStock({ negocioId, userId, info }) {
       </div>
 
       {pestana === 'informes' ? (
-        <Informes negocioId={negocioId} productos={productos} />
+        <Informes negocioId={negocioId} negocioNombre={negocioNombre} productos={productos} />
       ) : (
       <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}>
 
@@ -1014,7 +1018,7 @@ function PanelStock({ negocioId, userId, info }) {
 /* ============================================================
    INFORMES — vista de solo lectura con los indicadores del inventario
    ============================================================ */
-function Informes({ negocioId, productos }) {
+function Informes({ negocioId, negocioNombre, productos }) {
   const [movimientos, setMovimientos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [periodo, setPeriodo] = useState(30); // días
@@ -1082,6 +1086,98 @@ function Informes({ negocioId, productos }) {
     (a, b) => new Date(b.ultima) - new Date(a.ultima)
   );
 
+  async function cargarImagenBase64(url) {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function descargarInformePDF() {
+    const doc = new jsPDF();
+    const VERDE = [13, 58, 40];   // #0D3A28
+
+    // --- Cabecera con membrete ---
+    doc.setFillColor(...VERDE);
+    doc.rect(0, 0, 210, 32, 'F');
+
+    // Logo real (public/logo-tgh.png). Si falla la carga, seguimos sin logo, sin romper el PDF.
+    try {
+      const logoBase64 = await cargarImagenBase64('/logo-tgh.png');
+      doc.addImage(logoBase64, 'PNG', 14, 6, 20, 20);
+    } catch (e) {
+      // sin logo, no pasa nada
+    }
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.text('Tu Gestor Hostelero', 39, 15);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text('Informe de Cierre de Inventario · Módulo de Stock', 39, 22);
+
+    // --- Datos del negocio y fecha ---
+    doc.setTextColor(20, 39, 28);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text(negocioNombre || 'Tu negocio', 14, 44);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+    doc.text(`Fecha del informe: ${new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}`, 14, 50);
+
+    // --- Tabla de inventario ---
+    const filas = productos.map((p) => [
+      p.nombre,
+      p.unidad,
+      String(p.stock_actual),
+      p.costo_unitario != null ? `${Number(p.costo_unitario).toFixed(2)} €` : '—',
+      p.costo_unitario != null ? `${(p.stock_actual * p.costo_unitario).toFixed(2)} €` : '—',
+    ]);
+
+    autoTable(doc, {
+      startY: 58,
+      head: [['Producto', 'Unidad', 'Stock actual', 'Coste / ud', 'Valor total']],
+      body: filas,
+      headStyles: { fillColor: VERDE, textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [243, 241, 231] },
+      styles: { fontSize: 9, cellPadding: 4 },
+      columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
+    });
+
+    // --- Totales ---
+    const finalY = doc.lastAutoTable.finalY || 60;
+    doc.setDrawColor(...VERDE);
+    doc.setLineWidth(0.5);
+    doc.line(14, finalY + 6, 196, finalY + 6);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(...VERDE);
+    doc.text(`Valor total del inventario: ${valorTotal.toFixed(2)} €`, 14, finalY + 14);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(90, 100, 95);
+    doc.text(
+      `${productosConCosto.length} de ${productos.length} productos con precio de coste registrado.`,
+      14, finalY + 20
+    );
+
+    // --- Pie de página ---
+    doc.setFontSize(8);
+    doc.setTextColor(140, 150, 145);
+    doc.text('Generado automáticamente por Tu Gestor Hostelero — tugestorhostelero.es', 14, 287);
+
+    const fechaArchivo = new Date().toISOString().slice(0, 10);
+    const nombreSeguro = (negocioNombre || 'negocio').replace(/[^a-z0-9]+/gi, '_');
+    doc.save(`inventario_${nombreSeguro}_${fechaArchivo}.pdf`);
+  }
+
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}>
 
@@ -1099,7 +1195,12 @@ function Informes({ negocioId, productos }) {
 
       {/* Valor del inventario */}
       <div style={informeCard}>
-        <div style={informeTitulo}>💶 Valor del inventario</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+          <div style={informeTitulo}>💶 Valor del inventario</div>
+          <button onClick={descargarInformePDF} style={btnPdf} title="Descargar informe de cierre en PDF">
+            🖨️ Descargar PDF
+          </button>
+        </div>
         {productosConCosto.length === 0 ? (
           <p style={informeVacio}>Aún no has puesto precio de coste a ningún producto (edítalo desde "Detalle").</p>
         ) : (
@@ -1319,6 +1420,10 @@ const informeFila = {
 };
 const informeVacio = {
   color: '#8FA79A', fontSize: 13.5,
+};
+const btnPdf = {
+  flexShrink: 0, padding: '7px 14px', borderRadius: 8, border: 'none',
+  background: '#BCE05A', color: '#0D3A28', fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
 };
 const detalleBox = {
   marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.08)',

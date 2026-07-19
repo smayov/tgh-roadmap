@@ -256,6 +256,7 @@ function PanelStock({ negocioId, userId, info }) {
   const [nuevaUnidad, setNuevaUnidad] = useState('ud');
   const [nuevoMinimo, setNuevoMinimo] = useState('0');
   const [nuevoInicial, setNuevoInicial] = useState('0');
+  const [nuevoCosto, setNuevoCosto] = useState('');
   const [guardandoAlta, setGuardandoAlta] = useState(false);
 
   const [detalleAbierto, setDetalleAbierto] = useState(null);
@@ -264,6 +265,8 @@ function PanelStock({ negocioId, userId, info }) {
   const [detMotivo, setDetMotivo] = useState('');
   const [guardandoMov, setGuardandoMov] = useState(false);
   const [edMinimo, setEdMinimo] = useState('0');
+  const [edCosto, setEdCosto] = useState('');
+  const [guardandoCosto, setGuardandoCosto] = useState(false);
   const [guardandoMinimo, setGuardandoMinimo] = useState(false);
   const [historial, setHistorial] = useState([]);
   const [notas, setNotas] = useState([]);
@@ -276,6 +279,7 @@ function PanelStock({ negocioId, userId, info }) {
   const [resultadoImport, setResultadoImport] = useState(null);
 
   const [subiendoFotoId, setSubiendoFotoId] = useState(null); // producto_id cuya foto se está subiendo
+  const [pestana, setPestana] = useState('inventario'); // 'inventario' | 'informes'
 
   // cantidad editable del contador rápido +/- (por producto)
   const [cantidades, setCantidades] = useState({});
@@ -330,6 +334,7 @@ function PanelStock({ negocioId, userId, info }) {
       unidad: nuevaUnidad,
       stock_minimo: Number(nuevoMinimo) || 0,
       stock_actual: Number(nuevoInicial) || 0,
+      costo_unitario: nuevoCosto === '' ? null : Number(nuevoCosto),
     });
 
     setGuardandoAlta(false);
@@ -339,6 +344,7 @@ function PanelStock({ negocioId, userId, info }) {
     setNuevaUnidad('ud');
     setNuevoMinimo('0');
     setNuevoInicial('0');
+    setNuevoCosto('');
     setMostrarAlta(false);
     await cargarProductos();
   }
@@ -373,6 +379,17 @@ function PanelStock({ negocioId, userId, info }) {
       .update({ stock_minimo: Number(edMinimo) || 0 })
       .eq('id', producto_id);
     setGuardandoMinimo(false);
+    if (error) { setError(error.message); return; }
+    await cargarProductos();
+  }
+
+  async function handleGuardarCosto(producto_id) {
+    setGuardandoCosto(true);
+    const { error } = await supabase
+      .from('productos')
+      .update({ costo_unitario: edCosto === '' ? null : Number(edCosto) })
+      .eq('id', producto_id);
+    setGuardandoCosto(false);
     if (error) { setError(error.message); return; }
     await cargarProductos();
   }
@@ -461,6 +478,7 @@ function PanelStock({ negocioId, userId, info }) {
     if (detalleAbierto === p.id) { setDetalleAbierto(null); return; }
     setDetalleAbierto(p.id);
     setEdMinimo(String(p.stock_minimo));
+    setEdCosto(p.costo_unitario != null ? String(p.costo_unitario) : '');
     cargarHistorial(p.id);
     cargarNotas(p.id);
   }
@@ -600,6 +618,26 @@ function PanelStock({ negocioId, userId, info }) {
 
       {error && <div style={errorBox}>{error}</div>}
 
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
+        <div style={tabsWrap}>
+          <button
+            onClick={() => setPestana('inventario')}
+            style={{ ...tabBtn, ...(pestana === 'inventario' ? tabBtnActivo : {}) }}
+          >
+            📋 Inventario
+          </button>
+          <button
+            onClick={() => setPestana('informes')}
+            style={{ ...tabBtn, ...(pestana === 'informes' ? tabBtnActivo : {}) }}
+          >
+            📊 Informes
+          </button>
+        </div>
+      </div>
+
+      {pestana === 'informes' ? (
+        <Informes negocioId={negocioId} productos={productos} />
+      ) : (
       <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}>
 
         <p style={introAcciones}>
@@ -723,6 +761,18 @@ function PanelStock({ negocioId, userId, info }) {
                 />
               </div>
             </div>
+            <div>
+              <label style={campoLabel}>Precio de coste por unidad (opcional, en €)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="ej. 0.85"
+                value={nuevoCosto}
+                onChange={(e) => setNuevoCosto(e.target.value)}
+                style={{ ...input, width: '100%' }}
+              />
+            </div>
             <button type="submit" disabled={guardandoAlta} style={btnLima}>
               {guardandoAlta ? 'Guardando…' : 'Guardar producto'}
             </button>
@@ -825,6 +875,25 @@ function PanelStock({ negocioId, userId, info }) {
                         style={{ ...btnDetalle, padding: '9px 16px', width: 'auto' }}
                       >
                         {guardandoMinimo ? 'Guardando…' : 'Guardar mínimo'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={campoLabel}>Precio de coste por unidad (€)</label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        type="number" min="0" step="0.01" value={edCosto}
+                        placeholder="ej. 0.85"
+                        onChange={(e) => setEdCosto(e.target.value)}
+                        style={{ ...input, width: 90 }}
+                      />
+                      <button
+                        onClick={() => handleGuardarCosto(p.id)}
+                        disabled={guardandoCosto}
+                        style={{ ...btnDetalle, padding: '9px 16px', width: 'auto' }}
+                      >
+                        {guardandoCosto ? 'Guardando…' : 'Guardar precio'}
                       </button>
                     </div>
                   </div>
@@ -936,6 +1005,171 @@ function PanelStock({ negocioId, userId, info }) {
             </div>
           );
         })}
+      </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   INFORMES — vista de solo lectura con los indicadores del inventario
+   ============================================================ */
+function Informes({ negocioId, productos }) {
+  const [movimientos, setMovimientos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [periodo, setPeriodo] = useState(30); // días
+
+  useEffect(() => {
+    (async () => {
+      setCargando(true);
+      const { data, error } = await supabase
+        .from('movimientos_stock')
+        .select('*')
+        .eq('negocio_id', negocioId)
+        .order('created_at', { ascending: false })
+        .limit(2000);
+      if (!error) setMovimientos(data || []);
+      setCargando(false);
+    })();
+  }, [negocioId]);
+
+  if (cargando) {
+    return <p style={{ color: '#B7C7BE', textAlign: 'center' }}>Cargando informes…</p>;
+  }
+
+  const cutoff = Date.now() - periodo * 24 * 60 * 60 * 1000;
+
+  // 1. Productos bajo mínimo
+  const bajoMinimo = productos.filter((p) => p.stock_actual <= p.stock_minimo);
+
+  // 2. Entradas vs salidas en el periodo
+  const movsPeriodo = movimientos.filter((m) => new Date(m.created_at).getTime() >= cutoff);
+  const totalEntradas = movsPeriodo.filter((m) => m.tipo === 'entrada').reduce((t, m) => t + Number(m.cantidad), 0);
+  const totalSalidas = movsPeriodo.filter((m) => m.tipo === 'salida').reduce((t, m) => t + Number(m.cantidad), 0);
+
+  // 3. Última fecha de movimiento por producto → detectar inactividad
+  const ultimaFechaPorProducto = {};
+  movimientos.forEach((m) => {
+    const actual = ultimaFechaPorProducto[m.producto_id];
+    if (!actual || new Date(m.created_at) > new Date(actual)) {
+      ultimaFechaPorProducto[m.producto_id] = m.created_at;
+    }
+  });
+  const sinMovimiento = productos.filter((p) => {
+    const ultima = ultimaFechaPorProducto[p.id];
+    if (!ultima) return true;
+    return new Date(ultima).getTime() < cutoff;
+  });
+
+  // 4. Valor total del inventario (solo productos con precio de coste puesto)
+  const productosConCosto = productos.filter((p) => p.costo_unitario != null);
+  const valorTotal = productosConCosto.reduce((t, p) => t + p.stock_actual * p.costo_unitario, 0);
+
+  // 5. Historial de importaciones (derivado de los motivos "Ajuste por importación (archivo)")
+  const importaciones = {};
+  movimientos.forEach((m) => {
+    const match = m.motivo && m.motivo.match(/^Ajuste por importación \((.+)\)$/);
+    if (match) {
+      const archivo = match[1];
+      if (!importaciones[archivo]) importaciones[archivo] = { archivo, movimientos: 0, ultima: m.created_at };
+      importaciones[archivo].movimientos++;
+      if (new Date(m.created_at) > new Date(importaciones[archivo].ultima)) {
+        importaciones[archivo].ultima = m.created_at;
+      }
+    }
+  });
+  const listaImportaciones = Object.values(importaciones).sort(
+    (a, b) => new Date(b.ultima) - new Date(a.ultima)
+  );
+
+  return (
+    <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {[7, 30, 90].map((d) => (
+          <button
+            key={d}
+            onClick={() => setPeriodo(d)}
+            style={{ ...btnDetalle, ...(periodo === d ? tabBtnActivo : {}) }}
+          >
+            {d} días
+          </button>
+        ))}
+      </div>
+
+      {/* Valor del inventario */}
+      <div style={informeCard}>
+        <div style={informeTitulo}>💶 Valor del inventario</div>
+        {productosConCosto.length === 0 ? (
+          <p style={informeVacio}>Aún no has puesto precio de coste a ningún producto (edítalo desde "Detalle").</p>
+        ) : (
+          <>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#fff' }}>{valorTotal.toFixed(2)} €</div>
+            <p style={{ color: '#8FA79A', fontSize: 13, marginTop: 4 }}>
+              {productosConCosto.length} de {productos.length} productos con precio puesto
+            </p>
+          </>
+        )}
+      </div>
+
+      {/* Bajo mínimo */}
+      <div style={informeCard}>
+        <div style={informeTitulo}>🔴 Por debajo del mínimo ({bajoMinimo.length})</div>
+        {bajoMinimo.length === 0 ? (
+          <p style={informeVacio}>Ningún producto está bajo mínimos ahora mismo. 👍</p>
+        ) : bajoMinimo.map((p) => (
+          <div key={p.id} style={informeFila}>
+            <span>{p.nombre}</span>
+            <span style={{ color: '#E0725A' }}>{p.stock_actual} / mín. {p.stock_minimo} {p.unidad}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Entradas vs salidas */}
+      <div style={informeCard}>
+        <div style={informeTitulo}>📊 Movimientos en los últimos {periodo} días</div>
+        <div style={{ display: 'flex', gap: 24 }}>
+          <div>
+            <span style={{ color: '#7FC9A4', fontWeight: 700, fontSize: 22 }}>↑ {totalEntradas}</span>
+            <div style={{ color: '#8FA79A', fontSize: 12 }}>entradas</div>
+          </div>
+          <div>
+            <span style={{ color: '#E0725A', fontWeight: 700, fontSize: 22 }}>↓ {totalSalidas}</span>
+            <div style={{ color: '#8FA79A', fontSize: 12 }}>salidas</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Sin movimiento reciente */}
+      <div style={informeCard}>
+        <div style={informeTitulo}>💤 Sin movimiento en {periodo} días ({sinMovimiento.length})</div>
+        {sinMovimiento.length === 0 ? (
+          <p style={informeVacio}>Todos tus productos han tenido actividad reciente.</p>
+        ) : sinMovimiento.map((p) => (
+          <div key={p.id} style={informeFila}>
+            <span>{p.nombre}</span>
+            <span style={{ color: '#8FA79A' }}>
+              {ultimaFechaPorProducto[p.id]
+                ? 'último: ' + new Date(ultimaFechaPorProducto[p.id]).toLocaleDateString('es-ES')
+                : 'nunca'}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Historial de importaciones */}
+      <div style={informeCard}>
+        <div style={informeTitulo}>📥 Historial de importaciones</div>
+        {listaImportaciones.length === 0 ? (
+          <p style={informeVacio}>Aún no has importado ningún archivo.</p>
+        ) : listaImportaciones.map((imp, i) => (
+          <div key={i} style={informeFila}>
+            <span>{imp.archivo}</span>
+            <span style={{ color: '#8FA79A' }}>
+              {imp.movimientos} ajuste(s) · {new Date(imp.ultima).toLocaleDateString('es-ES')}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1057,6 +1291,34 @@ const stepperInput = {
 const btnDetalle = {
   padding: '7px 12px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,.2)',
   background: 'transparent', color: '#B7C7BE', fontSize: 13, cursor: 'pointer',
+};
+
+/* --- pestañas Inventario / Informes --- */
+const tabsWrap = {
+  display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid rgba(255,255,255,.1)', paddingBottom: 4,
+};
+const tabBtn = {
+  padding: '9px 16px', borderRadius: '10px 10px 0 0', border: 'none', background: 'transparent',
+  color: '#8FA79A', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+};
+const tabBtnActivo = {
+  background: '#BCE05A', color: '#0D3A28',
+};
+
+/* --- tarjetas de informes --- */
+const informeCard = {
+  background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)',
+  borderRadius: 14, padding: '18px 20px', marginBottom: 14,
+};
+const informeTitulo = {
+  color: '#fff', fontWeight: 700, fontSize: 15, marginBottom: 12,
+};
+const informeFila = {
+  display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13.5,
+  color: '#EAF3EC', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.06)',
+};
+const informeVacio = {
+  color: '#8FA79A', fontSize: 13.5,
 };
 const detalleBox = {
   marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.08)',

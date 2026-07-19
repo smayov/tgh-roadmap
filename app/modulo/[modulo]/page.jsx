@@ -901,7 +901,7 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
 
                   <div>
                     <label style={campoLabel}>Precio de coste por unidad (€)</label>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                       <input
                         type="number" min="0" step="0.01" value={edCosto}
                         placeholder="ej. 0.85"
@@ -915,6 +915,9 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
                       >
                         {guardandoCosto ? 'Guardando…' : 'Guardar precio'}
                       </button>
+                      <span style={costoHint}>
+                        Opcional — puedes ponerlo cuando te llegue la factura del proveedor.
+                      </span>
                     </div>
                   </div>
 

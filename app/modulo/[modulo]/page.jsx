@@ -343,10 +343,10 @@ function PanelStock({ negocioId, userId, info }) {
     setGuardandoMov(true);
     await registrarMovimiento(producto_id, detTipo, detCantidad, detMotivo);
     setGuardandoMov(false);
-    setDetalleAbierto(null);
     setDetMotivo('');
-    // La cantidad NO se resetea a 1: se mantiene el último valor usado,
-    // por si sueles registrar la misma cantidad varias veces seguidas (ej. cajas de 12).
+    // El panel de Detalle se queda abierto (no se cierra solo) para que veas
+    // el movimiento reflejado al instante en el historial de abajo.
+    // La cantidad tampoco se resetea a 1: se mantiene el último valor usado.
   }
 
   async function handleEliminarProducto(producto) {

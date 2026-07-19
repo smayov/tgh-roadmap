@@ -811,6 +811,39 @@ function PanelStock({ negocioId, userId, info }) {
 
                   <div style={separadorDetalle} />
 
+                  <label style={campoLabel}>Historial de movimientos</label>
+                  {cargandoHistorial && (
+                    <p style={{ color: '#8FA79A', fontSize: 13 }}>Cargando historial…</p>
+                  )}
+                  {!cargandoHistorial && historial.length === 0 && (
+                    <p style={{ color: '#8FA79A', fontSize: 13 }}>Aún no hay movimientos registrados para este producto.</p>
+                  )}
+                  {!cargandoHistorial && historial.length > 0 && (
+                    <div style={historialLista}>
+                      {historial.map((m) => (
+                        <div key={m.id} style={historialFila}>
+                          <span style={{ ...historialTipo, color: m.tipo === 'entrada' ? '#7FC9A4' : '#E0725A' }}>
+                            {m.tipo === 'entrada' ? '↑ Entrada' : '↓ Salida'}
+                          </span>
+                          <span style={historialCantidad}>{m.cantidad} {p.unidad}</span>
+                          <span style={historialMotivo}>{m.motivo || '—'}</span>
+                          <span style={historialFecha}>
+                            {new Date(m.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          <button
+                            onClick={() => handleEliminarMovimiento(p, m)}
+                            style={btnEliminarMov}
+                            title="Eliminar este movimiento (revierte el stock)"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={separadorDetalle} />
+
                   <label style={campoLabel}>Anotación (no afecta al stock)</label>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <input
@@ -843,39 +876,6 @@ function PanelStock({ negocioId, userId, info }) {
                             onClick={() => handleEliminarNota(p.id, n)}
                             style={btnEliminarMov}
                             title="Eliminar esta anotación"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div style={separadorDetalle} />
-
-                  <label style={campoLabel}>Historial de movimientos</label>
-                  {cargandoHistorial && (
-                    <p style={{ color: '#8FA79A', fontSize: 13 }}>Cargando historial…</p>
-                  )}
-                  {!cargandoHistorial && historial.length === 0 && (
-                    <p style={{ color: '#8FA79A', fontSize: 13 }}>Aún no hay movimientos registrados para este producto.</p>
-                  )}
-                  {!cargandoHistorial && historial.length > 0 && (
-                    <div style={historialLista}>
-                      {historial.map((m) => (
-                        <div key={m.id} style={historialFila}>
-                          <span style={{ ...historialTipo, color: m.tipo === 'entrada' ? '#7FC9A4' : '#E0725A' }}>
-                            {m.tipo === 'entrada' ? '↑ Entrada' : '↓ Salida'}
-                          </span>
-                          <span style={historialCantidad}>{m.cantidad} {p.unidad}</span>
-                          <span style={historialMotivo}>{m.motivo || '—'}</span>
-                          <span style={historialFecha}>
-                            {new Date(m.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                          <button
-                            onClick={() => handleEliminarMovimiento(p, m)}
-                            style={btnEliminarMov}
-                            title="Eliminar este movimiento (revierte el stock)"
                           >
                             🗑️
                           </button>

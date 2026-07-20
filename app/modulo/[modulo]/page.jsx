@@ -1105,6 +1105,48 @@ function Informes({ negocioId, negocioNombre, productos }) {
     (a, b) => new Date(b.ultima) - new Date(a.ultima)
   );
 
+  // 6. Candidatos a dejar de comprar: productos con stock pero SIN ninguna
+  //    salida en el periodo (no se han vendido/consumido), ordenados por
+  //    cuánto capital tienes parado en ellos.
+  const salidasPorProducto = {};
+  movsPeriodo.forEach((m) => {
+    if (m.tipo === 'salida') {
+      salidasPorProducto[m.producto_id] = (salidasPorProducto[m.producto_id] || 0) + Number(m.cantidad);
+    }
+  });
+  const candidatosDejarDeComprar = productos
+    .filter((p) => p.stock_actual > 0 && !salidasPorProducto[p.id])
+    .map((p) => ({
+      ...p,
+      capitalInmovilizado: p.costo_unitario != null ? p.stock_actual * p.costo_unitario : null,
+    }))
+    .sort((a, b) => (b.capitalInmovilizado ?? -1) - (a.capitalInmovilizado ?? -1));
+
+  // 7. Mermas y pérdidas: salidas cuyo motivo indica rotura, caducidad, merma...
+  const PALABRAS_MERMA = ['merma', 'rotura', 'roto', 'caduc', 'perdid', 'estropead', 'desperdici'];
+  function esMerma(motivo) {
+    if (!motivo) return false;
+    const m = motivo.toLowerCase();
+    return PALABRAS_MERMA.some((k) => m.includes(k));
+  }
+  const mermasPorProducto = {};
+  movsPeriodo.forEach((m) => {
+    if (m.tipo === 'salida' && esMerma(m.motivo)) {
+      if (!mermasPorProducto[m.producto_id]) mermasPorProducto[m.producto_id] = 0;
+      mermasPorProducto[m.producto_id] += Number(m.cantidad);
+    }
+  });
+  const listaMermas = Object.entries(mermasPorProducto)
+    .map(([producto_id, cantidad]) => {
+      const p = productos.find((pp) => pp.id === producto_id);
+      if (!p) return null;
+      const valor = p.costo_unitario != null ? cantidad * p.costo_unitario : null;
+      return { nombre: p.nombre, unidad: p.unidad, cantidad, valor };
+    })
+    .filter(Boolean)
+    .sort((a, b) => (b.valor ?? b.cantidad) - (a.valor ?? a.cantidad));
+  const valorTotalMermas = listaMermas.reduce((t, m) => t + (m.valor || 0), 0);
+
   async function cargarImagenBase64(url) {
     const res = await fetch(url);
     const blob = await res.blob();
@@ -1275,6 +1317,50 @@ function Informes({ negocioId, negocioNombre, productos }) {
             </span>
           </div>
         ))}
+      </div>
+
+      {/* Candidatos a dejar de comprar */}
+      <div style={informeCard}>
+        <div style={informeTitulo}>🐌 Candidatos a dejar de comprar ({candidatosDejarDeComprar.length})</div>
+        <p style={{ ...informeVacio, marginBottom: candidatosDejarDeComprar.length ? 10 : 0 }}>
+          Productos con stock que no han tenido ninguna salida en los últimos {periodo} días.
+        </p>
+        {candidatosDejarDeComprar.length === 0 ? (
+          <p style={informeVacio}>Todo tu inventario se está consumiendo con normalidad. 👍</p>
+        ) : candidatosDejarDeComprar.map((p) => (
+          <div key={p.id} style={informeFila}>
+            <span>{p.nombre}</span>
+            <span style={{ color: '#E0A92A' }}>
+              {p.stock_actual} {p.unidad} parados
+              {p.capitalInmovilizado != null && ` · ${p.capitalInmovilizado.toFixed(2)} € inmovilizados`}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Mermas y pérdidas */}
+      <div style={informeCard}>
+        <div style={informeTitulo}>🗑️ Mermas y pérdidas en {periodo} días</div>
+        {listaMermas.length === 0 ? (
+          <p style={informeVacio}>No se han registrado mermas en este periodo (o no usas esas palabras en el motivo: merma, rotura, caducado...).</p>
+        ) : (
+          <>
+            {valorTotalMermas > 0 && (
+              <div style={{ fontSize: 20, fontWeight: 800, color: '#E0725A', marginBottom: 10 }}>
+                {valorTotalMermas.toFixed(2)} € perdidos
+              </div>
+            )}
+            {listaMermas.map((m, i) => (
+              <div key={i} style={informeFila}>
+                <span>{m.nombre}</span>
+                <span style={{ color: '#E0725A' }}>
+                  {m.cantidad} {m.unidad}
+                  {m.valor != null && ` · ${m.valor.toFixed(2)} €`}
+                </span>
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       {/* Historial de importaciones */}

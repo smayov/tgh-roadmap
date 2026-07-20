@@ -950,7 +950,8 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
                         {guardandoCosto ? 'Guardando…' : 'Guardar precio'}
                       </button>
                       <span style={costoHint}>
-                        Opcional — puedes ponerlo cuando te llegue la factura del proveedor.
+                        Úsalo cuando YA SABES el precio por unidad (ej. "cada botella me cuesta 0,85 €").
+                        Si solo sabes lo que pagaste en total, usa el campo de abajo, en "Registrar movimiento".
                       </span>
                     </div>
                   </div>
@@ -990,7 +991,7 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
                         <span style={costoHint}>
                           {Number(detCosteTotal) > 0 && Number(detCantidad) > 0
                             ? `= ${(Number(detCosteTotal) / Number(detCantidad)).toFixed(3)} € por ${p.unidad} · actualizará el precio de coste del producto`
-                            : `Si lo pones, calculamos solos el precio por ${p.unidad} y actualizamos el coste del producto.`}
+                            : `Úsalo cuando NO sabes el precio por unidad, pero sí lo que pagaste en total (ej. 2 cajas por 25€ cada una → cantidad: unidades totales de ambas cajas, coste: 50€). Calculamos el precio/${p.unidad} solos.`}
                         </span>
                       </div>
                     </div>

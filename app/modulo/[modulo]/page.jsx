@@ -270,6 +270,7 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
   const [detTipo, setDetTipo] = useState('entrada');
   const [detCantidad, setDetCantidad] = useState('1');
   const [detMotivo, setDetMotivo] = useState('');
+  const [detCosteTotal, setDetCosteTotal] = useState('');
   const [guardandoMov, setGuardandoMov] = useState(false);
   const [edMinimo, setEdMinimo] = useState('0');
   const [edCosto, setEdCosto] = useState('');
@@ -358,9 +359,39 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
 
   async function handleGuardarDetalle(producto_id) {
     setGuardandoMov(true);
-    await registrarMovimiento(producto_id, detTipo, detCantidad, detMotivo);
+
+    const cant = Number(detCantidad);
+    const costeTotal = Number(detCosteTotal);
+    const esCompraConCoste = detTipo === 'entrada' && costeTotal > 0 && cant > 0;
+
+    let motivoFinal = detMotivo.trim();
+    let costoPorUnidad = null;
+
+    if (esCompraConCoste) {
+      const prod = productos.find((pp) => pp.id === producto_id);
+      const unidadProd = prod ? prod.unidad : 'ud';
+      costoPorUnidad = costeTotal / cant;
+      // Formato fijo para que el informe de evolución de precios lo pueda leer:
+      // "Compra: 8.00€ total (0.200€/ud)"
+      const etiquetaCompra = `Compra: ${costeTotal.toFixed(2)}€ total (${costoPorUnidad.toFixed(3)}€/${unidadProd})`;
+      motivoFinal = motivoFinal ? `${etiquetaCompra} · ${motivoFinal}` : etiquetaCompra;
+    }
+
+    await registrarMovimiento(producto_id, detTipo, detCantidad, motivoFinal || null);
+
+    // Actualizamos el precio de coste del producto (método "último coste")
+    if (esCompraConCoste) {
+      await supabase
+        .from('productos')
+        .update({ costo_unitario: costoPorUnidad })
+        .eq('id', producto_id);
+      await cargarProductos();
+      setEdCosto(costoPorUnidad.toFixed(4));
+    }
+
     setGuardandoMov(false);
     setDetMotivo('');
+    setDetCosteTotal('');
     // El panel de Detalle se queda abierto (no se cierra solo) para que veas
     // el movimiento reflejado al instante en el historial de abajo.
     // La cantidad tampoco se resetea a 1: se mantiene el último valor usado.
@@ -944,6 +975,27 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
                     onChange={(e) => setDetMotivo(e.target.value)}
                     style={input}
                   />
+
+                  {detTipo === 'entrada' && (
+                    <div>
+                      <label style={campoLabel}>¿Cuánto pagaste en total por esta entrada? (opcional)</label>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <input
+                          type="number" min="0" step="0.01"
+                          placeholder="ej. 8.00"
+                          value={detCosteTotal}
+                          onChange={(e) => setDetCosteTotal(e.target.value)}
+                          style={{ ...input, width: 100 }}
+                        />
+                        <span style={costoHint}>
+                          {Number(detCosteTotal) > 0 && Number(detCantidad) > 0
+                            ? `= ${(Number(detCosteTotal) / Number(detCantidad)).toFixed(3)} € por ${p.unidad} · actualizará el precio de coste del producto`
+                            : `Si lo pones, calculamos solos el precio por ${p.unidad} y actualizamos el coste del producto.`}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   <button
                     onClick={() => handleGuardarDetalle(p.id)}
                     disabled={guardandoMov}
@@ -1040,10 +1092,27 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
 /* ============================================================
    INFORMES — vista de solo lectura con los indicadores del inventario
    ============================================================ */
+/* Título de tarjeta de informe con botón de ayuda (ℹ️) que despliega una explicación corta */
+function TituloInforme({ clave, texto, ayuda, ayudaAbierta, onToggle }) {
+  return (
+    <div style={{ marginBottom: ayudaAbierta[clave] ? 6 : 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ ...informeTitulo, marginBottom: 0 }}>{texto}</span>
+        <button onClick={() => onToggle(clave)} style={btnInfo} title="¿Para qué sirve esto?">
+          ℹ️
+        </button>
+      </div>
+      {ayudaAbierta[clave] && <p style={ayudaTexto}>{ayuda}</p>}
+    </div>
+  );
+}
+
 function Informes({ negocioId, negocioNombre, productos }) {
   const [movimientos, setMovimientos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [periodo, setPeriodo] = useState(30); // días
+  const [ayudaAbierta, setAyudaAbierta] = useState({});
+  const toggleAyuda = (clave) => setAyudaAbierta((a) => ({ ...a, [clave]: !a[clave] }));
 
   useEffect(() => {
     (async () => {
@@ -1166,6 +1235,32 @@ function Informes({ negocioId, negocioNombre, productos }) {
   const restoValor = productosPorValor.slice(5).reduce((t, p) => t + p.valor, 0);
   const dataTarta = restoValor > 0 ? [...top5Valor, { nombre: 'Otros', valor: restoValor }] : top5Valor;
 
+  // 8. Evolución de precios de compra: se lee del motivo "Compra: X€ total (Y€/unidad)"
+  //    que genera el propio formulario de Registrar movimiento al indicar el coste total.
+  const comprasPorProducto = {};
+  movimientos.forEach((m) => {
+    if (m.tipo === 'entrada' && m.motivo) {
+      const match = m.motivo.match(/\(([\d.]+)€\//);
+      if (match) {
+        const precio = Number(match[1]);
+        if (!comprasPorProducto[m.producto_id]) comprasPorProducto[m.producto_id] = [];
+        comprasPorProducto[m.producto_id].push({ precio, fecha: m.created_at });
+      }
+    }
+  });
+  const evolucionPrecios = Object.entries(comprasPorProducto)
+    .filter(([, compras]) => compras.length >= 2)
+    .map(([producto_id, compras]) => {
+      const ordenadas = compras.slice().sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+      const primero = ordenadas[0].precio;
+      const ultimo = ordenadas[ordenadas.length - 1].precio;
+      const cambioPorc = primero > 0 ? ((ultimo - primero) / primero) * 100 : 0;
+      const p = productos.find((pp) => pp.id === producto_id);
+      return p ? { nombre: p.nombre, unidad: p.unidad, primero, ultimo, cambioPorc, numCompras: compras.length } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => Math.abs(b.cambioPorc) - Math.abs(a.cambioPorc));
+
   async function cargarImagenBase64(url) {
     const res = await fetch(url);
     const blob = await res.blob();
@@ -1276,7 +1371,13 @@ function Informes({ negocioId, negocioNombre, productos }) {
       {/* Valor del inventario */}
       <div style={informeCard}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
-          <div style={informeTitulo}>💶 Valor del inventario</div>
+          <TituloInforme
+            clave="valor"
+            texto="💶 Valor del inventario"
+            ayuda='Cuánto dinero tienes invertido ahora mismo en tu almacén (stock actual × precio de coste). Te sirve para el cierre del año con tu gestoría, y para saber cuánto capital tienes "parado" en productos sin vender.'
+            ayudaAbierta={ayudaAbierta}
+            onToggle={toggleAyuda}
+          />
           <button onClick={descargarInformePDF} style={btnPdf} title="Descargar informe de cierre en PDF">
             🖨️ Descargar PDF
           </button>
@@ -1314,7 +1415,13 @@ function Informes({ negocioId, negocioNombre, productos }) {
 
       {/* Bajo mínimo */}
       <div style={informeCard}>
-        <div style={informeTitulo}>🔴 Por debajo del mínimo ({bajoMinimo.length})</div>
+        <TituloInforme
+          clave="minimo"
+          texto={`🔴 Por debajo del mínimo (${bajoMinimo.length})`}
+          ayuda="Productos que ya han llegado (o están por debajo) del umbral de aviso que tú mismo configuraste en cada producto. Revísalo antes de hacer el pedido semanal, para no quedarte sin stock de algo importante."
+          ayudaAbierta={ayudaAbierta}
+          onToggle={toggleAyuda}
+        />
         {bajoMinimo.length === 0 ? (
           <p style={informeVacio}>Ningún producto está bajo mínimos ahora mismo. 👍</p>
         ) : bajoMinimo.map((p) => (
@@ -1327,7 +1434,13 @@ function Informes({ negocioId, negocioNombre, productos }) {
 
       {/* Entradas vs salidas */}
       <div style={informeCard}>
-        <div style={informeTitulo}>📊 Movimientos en los últimos {periodo} días</div>
+        <TituloInforme
+          clave="movimientos"
+          texto={`📊 Movimientos en los últimos ${periodo} días`}
+          ayuda="Cuánto ha entrado y salido de tu almacén en el periodo elegido arriba. Te da una idea rápida de cuánta actividad tiene tu inventario — si las salidas son mucho mayores que las entradas, quizá toca reponer pronto."
+          ayudaAbierta={ayudaAbierta}
+          onToggle={toggleAyuda}
+        />
         <div style={{ display: 'flex', gap: 24 }}>
           <div>
             <span style={{ color: '#7FC9A4', fontWeight: 700, fontSize: 22 }}>↑ {totalEntradas}</span>
@@ -1362,7 +1475,13 @@ function Informes({ negocioId, negocioNombre, productos }) {
 
       {/* Sin movimiento reciente */}
       <div style={informeCard}>
-        <div style={informeTitulo}>💤 Sin movimiento en {periodo} días ({sinMovimiento.length})</div>
+        <TituloInforme
+          clave="sinMovimiento"
+          texto={`💤 Sin movimiento en ${periodo} días (${sinMovimiento.length})`}
+          ayuda="Productos que llevan todo el periodo elegido sin ninguna salida registrada. Puede ser normal (algo de uso puntual), pero si lleva mucho tiempo así, revisa que no se esté echando a perder en la estantería."
+          ayudaAbierta={ayudaAbierta}
+          onToggle={toggleAyuda}
+        />
         {sinMovimiento.length === 0 ? (
           <p style={informeVacio}>Todos tus productos han tenido actividad reciente.</p>
         ) : sinMovimiento.map((p) => (
@@ -1379,7 +1498,13 @@ function Informes({ negocioId, negocioNombre, productos }) {
 
       {/* Candidatos a dejar de comprar */}
       <div style={informeCard}>
-        <div style={informeTitulo}>🐌 Candidatos a dejar de comprar ({candidatosDejarDeComprar.length})</div>
+        <TituloInforme
+          clave="candidatos"
+          texto={`🐌 Candidatos a dejar de comprar (${candidatosDejarDeComprar.length})`}
+          ayuda="Productos que tienes en stock pero que no se han vendido ni consumido en el periodo elegido. Se ordenan por cuánto dinero tienes parado en ellos, para que revises primero los que más te cuestan tener guardados sin usar."
+          ayudaAbierta={ayudaAbierta}
+          onToggle={toggleAyuda}
+        />
         <p style={{ ...informeVacio, marginBottom: candidatosDejarDeComprar.length ? 10 : 0 }}>
           Productos con stock que no han tenido ninguna salida en los últimos {periodo} días.
         </p>
@@ -1398,7 +1523,13 @@ function Informes({ negocioId, negocioNombre, productos }) {
 
       {/* Mermas y pérdidas */}
       <div style={informeCard}>
-        <div style={informeTitulo}>🗑️ Mermas y pérdidas en {periodo} días</div>
+        <TituloInforme
+          clave="mermas"
+          texto={`🗑️ Mermas y pérdidas en ${periodo} días`}
+          ayuda='Salidas registradas con un motivo que suena a pérdida ("merma", "rotura", "caducado"...). Te ayuda a detectar qué producto se te estropea o rompe más a menudo, y cuánto dinero te está costando.'
+          ayudaAbierta={ayudaAbierta}
+          onToggle={toggleAyuda}
+        />
         {listaMermas.length === 0 ? (
           <div style={informeVacio}>
             <p style={{ marginBottom: 6 }}>No se ha detectado ninguna merma en este periodo.</p>
@@ -1427,9 +1558,40 @@ function Informes({ negocioId, negocioNombre, productos }) {
         )}
       </div>
 
+      {/* Evolución de precios de compra */}
+      <div style={informeCard}>
+        <TituloInforme
+          clave="evolucion"
+          texto="📈 Evolución de precios de compra"
+          ayuda='Compara el primer y el último precio que pagaste por cada producto (cuando indicas el coste total al registrar una entrada). Útil para detectar si un proveedor te está subiendo el precio poco a poco, y tener argumentos para negociar.'
+          ayudaAbierta={ayudaAbierta}
+          onToggle={toggleAyuda}
+        />
+        {evolucionPrecios.length === 0 ? (
+          <p style={informeVacio}>
+            Aún no hay suficientes compras registradas con coste total (hacen falta al menos 2 por producto).
+            Indícalo al registrar una entrada, en "¿Cuánto pagaste en total?".
+          </p>
+        ) : evolucionPrecios.map((v, i) => (
+          <div key={i} style={informeFila}>
+            <span>{v.nombre} <span style={{ color: '#5C6B61', fontSize: 11 }}>({v.numCompras} compras)</span></span>
+            <span style={{ color: v.cambioPorc > 0 ? '#E0725A' : v.cambioPorc < 0 ? '#7FC9A4' : '#8FA79A' }}>
+              {v.primero.toFixed(3)} → {v.ultimo.toFixed(3)} €/{v.unidad}
+              {' '}({v.cambioPorc > 0 ? '↑' : v.cambioPorc < 0 ? '↓' : '='} {Math.abs(v.cambioPorc).toFixed(1)}%)
+            </span>
+          </div>
+        ))}
+      </div>
+
       {/* Historial de importaciones */}
       <div style={informeCard}>
-        <div style={informeTitulo}>📥 Historial de importaciones</div>
+        <TituloInforme
+          clave="importaciones"
+          texto="📥 Historial de importaciones"
+          ayuda="Qué archivos Excel/CSV has subido y cuándo, y cuántos ajustes de stock generó cada uno. Útil si necesitas rastrear de dónde vino un cambio masivo en tu inventario."
+          ayudaAbierta={ayudaAbierta}
+          onToggle={toggleAyuda}
+        />
         {listaImportaciones.length === 0 ? (
           <p style={informeVacio}>Aún no has importado ningún archivo.</p>
         ) : listaImportaciones.map((imp, i) => (
@@ -1596,6 +1758,14 @@ const informeVacio = {
 const btnPdf = {
   flexShrink: 0, padding: '7px 14px', borderRadius: 8, border: 'none',
   background: '#BCE05A', color: '#0D3A28', fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+};
+const btnInfo = {
+  width: 20, height: 20, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.1)',
+  color: '#B7C7BE', fontSize: 11, cursor: 'pointer', display: 'grid', placeItems: 'center', flexShrink: 0,
+};
+const ayudaTexto = {
+  color: '#B7C7BE', fontSize: 12.5, lineHeight: 1.5, background: 'rgba(255,255,255,.04)',
+  borderRadius: 8, padding: '8px 12px', marginTop: 4,
 };
 const detalleBox = {
   marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.08)',

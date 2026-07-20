@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import * as XLSX from 'xlsx';
+import {
+  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,
+} from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { supabase } from '../../supabaseClient';
@@ -1147,6 +1150,22 @@ function Informes({ negocioId, negocioNombre, productos }) {
     .sort((a, b) => (b.valor ?? b.cantidad) - (a.valor ?? a.cantidad));
   const valorTotalMermas = listaMermas.reduce((t, m) => t + (m.valor || 0), 0);
 
+  // --- Datos para el gráfico de barras: entradas vs salidas ---
+  const dataEntradasSalidas = [
+    { nombre: 'Entradas', cantidad: totalEntradas, fill: '#7FC9A4' },
+    { nombre: 'Salidas', cantidad: totalSalidas, fill: '#E0725A' },
+  ];
+
+  // --- Datos para el gráfico de tarta: distribución del valor del inventario ---
+  const COLORES_TARTA = ['#BCE05A', '#7FC9A4', '#199E94', '#2E9E6B', '#E0A92A', '#8FA79A'];
+  const productosPorValor = productosConCosto
+    .map((p) => ({ nombre: p.nombre, valor: p.stock_actual * p.costo_unitario }))
+    .filter((p) => p.valor > 0)
+    .sort((a, b) => b.valor - a.valor);
+  const top5Valor = productosPorValor.slice(0, 5);
+  const restoValor = productosPorValor.slice(5).reduce((t, p) => t + p.valor, 0);
+  const dataTarta = restoValor > 0 ? [...top5Valor, { nombre: 'Otros', valor: restoValor }] : top5Valor;
+
   async function cargarImagenBase64(url) {
     const res = await fetch(url);
     const blob = await res.blob();
@@ -1270,6 +1289,25 @@ function Informes({ negocioId, negocioNombre, productos }) {
             <p style={{ color: '#8FA79A', fontSize: 13, marginTop: 4 }}>
               {productosConCosto.length} de {productos.length} productos con precio puesto
             </p>
+
+            {dataTarta.length > 0 && (
+              <div style={{ width: '100%', height: 220, marginTop: 10 }}>
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie data={dataTarta} dataKey="valor" nameKey="nombre" cx="50%" cy="50%" innerRadius={42} outerRadius={72}>
+                      {dataTarta.map((d, i) => (
+                        <Cell key={i} fill={COLORES_TARTA[i % COLORES_TARTA.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background: '#124A34', border: 'none', borderRadius: 8, color: '#fff', fontSize: 12 }}
+                      formatter={(v) => `${Number(v).toFixed(2)} €`}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 11, color: '#B7C7BE' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -1300,6 +1338,26 @@ function Informes({ negocioId, negocioNombre, productos }) {
             <div style={{ color: '#8FA79A', fontSize: 12 }}>salidas</div>
           </div>
         </div>
+
+        {(totalEntradas > 0 || totalSalidas > 0) && (
+          <div style={{ width: '100%', height: 100, marginTop: 14 }}>
+            <ResponsiveContainer>
+              <BarChart data={dataEntradasSalidas} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 0 }}>
+                <XAxis type="number" hide />
+                <YAxis type="category" dataKey="nombre" width={70} tick={{ fill: '#B7C7BE', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ background: '#124A34', border: 'none', borderRadius: 8, color: '#fff', fontSize: 12 }}
+                  cursor={{ fill: 'rgba(255,255,255,.05)' }}
+                />
+                <Bar dataKey="cantidad" radius={[0, 6, 6, 0]}>
+                  {dataEntradasSalidas.map((d, i) => (
+                    <Cell key={i} fill={d.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
 
       {/* Sin movimiento reciente */}

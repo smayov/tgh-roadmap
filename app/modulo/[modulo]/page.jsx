@@ -1342,7 +1342,13 @@ function Informes({ negocioId, negocioNombre, productos }) {
       <div style={informeCard}>
         <div style={informeTitulo}>🗑️ Mermas y pérdidas en {periodo} días</div>
         {listaMermas.length === 0 ? (
-          <p style={informeVacio}>No se han registrado mermas en este periodo (o no usas esas palabras en el motivo: merma, rotura, caducado...).</p>
+          <div style={informeVacio}>
+            <p style={{ marginBottom: 6 }}>No se ha detectado ninguna merma en este periodo.</p>
+            <p style={{ fontSize: 12, color: '#5C6B61' }}>
+              Esto solo incluye salidas cuyo motivo mencione palabras como "merma", "rotura" o "caducado".
+              Si tuviste alguna pérdida pero no la escribiste así, no aparecerá aquí.
+            </p>
+          </div>
         ) : (
           <>
             {valorTotalMermas > 0 && (

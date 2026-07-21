@@ -264,6 +264,7 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
   const [nuevoMinimo, setNuevoMinimo] = useState('0');
   const [nuevoInicial, setNuevoInicial] = useState('0');
   const [nuevoCosto, setNuevoCosto] = useState('');
+  const [nuevoCosteTotal, setNuevoCosteTotal] = useState('');
   const [guardandoAlta, setGuardandoAlta] = useState(false);
 
   const [detalleAbierto, setDetalleAbierto] = useState(null);
@@ -287,7 +288,7 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
   const [resultadoImport, setResultadoImport] = useState(null);
 
   const [subiendoFotoId, setSubiendoFotoId] = useState(null); // producto_id cuya foto se está subiendo
-  const [pestana, setPestana] = useState('inventario'); // 'inventario' | 'informes'
+  const [pestana, setPestana] = useState('inventario'); // 'inventario' | 'informes' | 'avisos'
 
   // cantidad editable del contador rápido +/- (por producto)
   const [cantidades, setCantidades] = useState({});
@@ -336,13 +337,21 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
     if (!nuevoNombre.trim()) return;
     setGuardandoAlta(true);
 
+    // Precio de coste: si se puso directamente, se usa ese. Si no, pero sí se
+    // puso el coste total pagado, lo calculamos dividiendo entre el stock inicial.
+    const inicial = Number(nuevoInicial) || 0;
+    let costoFinal = nuevoCosto === '' ? null : Number(nuevoCosto);
+    if (costoFinal === null && nuevoCosteTotal !== '' && inicial > 0) {
+      costoFinal = Number(nuevoCosteTotal) / inicial;
+    }
+
     const { error } = await supabase.from('productos').insert({
       negocio_id: negocioId,
       nombre: nuevoNombre.trim(),
       unidad: nuevaUnidad,
       stock_minimo: Number(nuevoMinimo) || 0,
-      stock_actual: Number(nuevoInicial) || 0,
-      costo_unitario: nuevoCosto === '' ? null : Number(nuevoCosto),
+      stock_actual: inicial,
+      costo_unitario: costoFinal,
     });
 
     setGuardandoAlta(false);
@@ -353,6 +362,7 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
     setNuevoMinimo('0');
     setNuevoInicial('0');
     setNuevoCosto('');
+    setNuevoCosteTotal('');
     setMostrarAlta(false);
     await cargarProductos();
   }
@@ -680,12 +690,24 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
           >
             📊 Informes
           </button>
+          <button
+            onClick={() => setPestana('avisos')}
+            style={{ ...tabBtn, ...(pestana === 'avisos' ? tabBtnActivo : {}) }}
+          >
+            🔔 Avisos
+          </button>
         </div>
       </div>
 
-      {pestana === 'informes' ? (
+      {pestana === 'informes' && (
         <Informes negocioId={negocioId} negocioNombre={negocioNombre} productos={productos} />
-      ) : (
+      )}
+
+      {pestana === 'avisos' && (
+        <Avisos negocioId={negocioId} productosBajoMinimo={productos.filter((p) => p.stock_actual <= p.stock_minimo)} />
+      )}
+
+      {pestana === 'inventario' && (
       <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}>
 
         <p style={introAcciones}>
@@ -812,7 +834,7 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
             </div>
             <div>
               <label style={campoLabel}>Precio de coste por unidad (€)</label>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input
                   type="number"
                   min="0"
@@ -823,7 +845,30 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
                   style={{ ...input, width: 100, flexShrink: 0 }}
                 />
                 <span style={costoHint}>
-                  Opcional — puedes dejarlo en blanco ahora y añadirlo más adelante cuando te llegue la factura del proveedor.
+                  Úsalo cuando YA SABES el precio por unidad. Opcional — puedes dejarlo en blanco y
+                  añadirlo más adelante, o usar el campo de abajo si solo sabes lo que pagaste en total.
+                </span>
+              </div>
+            </div>
+            <div>
+              <label style={campoLabel}>...o cuánto pagaste en total por el stock inicial (€)</label>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="ej. 8.00"
+                  value={nuevoCosteTotal}
+                  onChange={(e) => setNuevoCosteTotal(e.target.value)}
+                  disabled={nuevoCosto !== ''}
+                  style={{ ...input, width: 100, flexShrink: 0, opacity: nuevoCosto !== '' ? 0.5 : 1 }}
+                />
+                <span style={costoHint}>
+                  {nuevoCosto !== ''
+                    ? 'Ya has puesto el precio directo arriba, no hace falta rellenar esto.'
+                    : Number(nuevoCosteTotal) > 0 && Number(nuevoInicial) > 0
+                      ? `= ${(Number(nuevoCosteTotal) / Number(nuevoInicial)).toFixed(3)} € por ${nuevaUnidad}`
+                      : `Ej. 2 cajas por 25€ cada una → stock inicial: unidades totales, coste: 50€. Calculamos el precio/${nuevaUnidad} automáticamente.`}
                 </span>
               </div>
             </div>
@@ -991,7 +1036,7 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
                         <span style={costoHint}>
                           {Number(detCosteTotal) > 0 && Number(detCantidad) > 0
                             ? `= ${(Number(detCosteTotal) / Number(detCantidad)).toFixed(3)} € por ${p.unidad} · actualizará el precio de coste del producto`
-                            : `Úsalo cuando NO sabes el precio por unidad, pero sí lo que pagaste en total (ej. 2 cajas por 25€ cada una → cantidad: unidades totales de ambas cajas, coste: 50€). Calculamos el precio/${p.unidad} solos.`}
+                            : `Úsalo cuando NO sabes el precio por unidad, pero sí lo que pagaste en total (ej. 2 cajas por 25€ cada una → cantidad: unidades totales de ambas cajas, coste: 50€). Calculamos el precio/${p.unidad} automáticamente.`}
                         </span>
                       </div>
                     </div>
@@ -1608,6 +1653,244 @@ function Informes({ negocioId, negocioNombre, productos }) {
   );
 }
 
+/* ============================================================
+   AVISOS — configuración de notificaciones de stock bajo mínimo
+   ============================================================ */
+function Avisos({ negocioId, productosBajoMinimo }) {
+  const [cargando, setCargando] = useState(true);
+  const [guardando, setGuardando] = useState(false);
+  const [guardado, setGuardado] = useState(false);
+  const [probando, setProbando] = useState(false);
+  const [resultadoPrueba, setResultadoPrueba] = useState(null);
+
+  const [panelActivo, setPanelActivo] = useState(true);
+  const [emailActivo, setEmailActivo] = useState(false);
+  const [emailDestino, setEmailDestino] = useState('');
+  const [whatsappActivo, setWhatsappActivo] = useState(false);
+  const [whatsappNumero, setWhatsappNumero] = useState('');
+  const [frecuencia, setFrecuencia] = useState('diario');
+
+  useEffect(() => {
+    (async () => {
+      setCargando(true);
+      const { data } = await supabase
+        .from('configuracion_avisos')
+        .select('*')
+        .eq('negocio_id', negocioId)
+        .maybeSingle();
+
+      if (data) {
+        setPanelActivo(data.panel_activo);
+        setEmailActivo(data.email_activo);
+        setEmailDestino(data.email_destino || '');
+        setWhatsappActivo(data.whatsapp_activo);
+        setWhatsappNumero(data.whatsapp_numero || '');
+        setFrecuencia(data.frecuencia || 'diario');
+      }
+      setCargando(false);
+    })();
+  }, [negocioId]);
+
+  async function handleGuardar() {
+    setGuardando(true);
+    setGuardado(false);
+
+    const { error } = await supabase.from('configuracion_avisos').upsert(
+      {
+        negocio_id: negocioId,
+        panel_activo: panelActivo,
+        email_activo: emailActivo,
+        email_destino: emailDestino.trim() || null,
+        whatsapp_activo: whatsappActivo,
+        whatsapp_numero: whatsappNumero.trim() || null,
+        frecuencia,
+        actualizado_en: new Date().toISOString(),
+      },
+      { onConflict: 'negocio_id' }
+    );
+
+    setGuardando(false);
+    if (!error) {
+      setGuardado(true);
+      setTimeout(() => setGuardado(false), 3000);
+    }
+  }
+
+  async function handleProbarEnvio() {
+    setProbando(true);
+    setResultadoPrueba(null);
+
+    try {
+      const res = await fetch('/api/avisos/enviar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ negocio_id: negocioId }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setResultadoPrueba({ ok: false, mensaje: `❌ ${data.error || 'Error al enviar'}` });
+      } else if (data.enviado) {
+        setResultadoPrueba({ ok: true, mensaje: `✅ Email enviado con ${data.total} producto(s) bajo mínimo.` });
+      } else {
+        setResultadoPrueba({ ok: true, mensaje: `ℹ️ ${data.motivo}` });
+      }
+    } catch (e) {
+      setResultadoPrueba({ ok: false, mensaje: `❌ ${e.message}` });
+    }
+
+    setProbando(false);
+  }
+
+  if (cargando) {
+    return <p style={{ color: '#B7C7BE', textAlign: 'center' }}>Cargando configuración de avisos…</p>;
+  }
+
+  return (
+    <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}>
+
+      <div style={{ ...informeCard, background: productosBajoMinimo.length > 0 ? 'rgba(224,114,90,.12)' : 'rgba(127,201,164,.10)' }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+          {productosBajoMinimo.length > 0
+            ? `⚠️ Ahora mismo tienes ${productosBajoMinimo.length} producto(s) por debajo del mínimo`
+            : '✅ Ningún producto está por debajo del mínimo ahora mismo'}
+        </div>
+        <p style={{ color: '#B7C7BE', fontSize: 13 }}>
+          Configura aquí cómo quieres que te avisemos cuando esto pase, para no tener que entrar a comprobarlo tú mismo.
+        </p>
+      </div>
+
+      {/* Canal: Panel principal */}
+      <div style={informeCard}>
+        <div style={avisoFila}>
+          <div>
+            <div style={avisoTitulo}>📱 Alerta en el panel principal</div>
+            <p style={avisoDesc}>
+              Verás un aviso destacado nada más entrar a /panel si algún producto está bajo mínimos. No requiere
+              ninguna configuración adicional — funciona siempre que actives esta opción.
+            </p>
+          </div>
+          <ToggleSwitch activo={panelActivo} onChange={setPanelActivo} />
+        </div>
+      </div>
+
+      {/* Canal: Email */}
+      <div style={informeCard}>
+        <div style={avisoFila}>
+          <div style={{ flex: 1 }}>
+            <div style={avisoTitulo}>✉️ Aviso por email</div>
+            <p style={avisoDesc}>
+              Te llega un correo cuando algo baja del mínimo, sin tener que abrir la web.
+            </p>
+          </div>
+          <ToggleSwitch activo={emailActivo} onChange={setEmailActivo} />
+        </div>
+        {emailActivo && (
+          <input
+            type="email"
+            placeholder="tu-email@ejemplo.com"
+            value={emailDestino}
+            onChange={(e) => setEmailDestino(e.target.value)}
+            style={{ ...input, width: '100%', marginTop: 10 }}
+          />
+        )}
+      </div>
+
+      {/* Canal: WhatsApp */}
+      <div style={informeCard}>
+        <div style={avisoFila}>
+          <div style={{ flex: 1 }}>
+            <div style={avisoTitulo}>💬 Aviso por WhatsApp</div>
+            <p style={avisoDesc}>
+              Te llega un WhatsApp con el aviso — el canal con más tasa de lectura, ideal para no perdértelo.
+            </p>
+          </div>
+          <ToggleSwitch activo={whatsappActivo} onChange={setWhatsappActivo} />
+        </div>
+        {whatsappActivo && (
+          <>
+            <input
+              type="tel"
+              placeholder="ej. +34 600 000 000"
+              value={whatsappNumero}
+              onChange={(e) => setWhatsappNumero(e.target.value)}
+              style={{ ...input, width: '100%', marginTop: 10 }}
+            />
+            <p style={{ ...avisoDesc, marginTop: 8, color: '#E0A92A' }}>
+              ⚙️ El envío por WhatsApp necesita una activación adicional en tu cuenta (cuenta de WhatsApp Business).
+              Guarda tu número ahora — en cuanto esté activo el envío, empezará a funcionar sin que tengas que hacer nada más.
+            </p>
+          </>
+        )}
+      </div>
+
+      {/* Frecuencia */}
+      <div style={informeCard}>
+        <div style={avisoTitulo}>⏱️ ¿Con qué frecuencia?</div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+          <button
+            onClick={() => setFrecuencia('inmediato')}
+            style={{ ...btnDetalle, ...(frecuencia === 'inmediato' ? tabBtnActivo : {}) }}
+          >
+            Al momento
+          </button>
+          <button
+            onClick={() => setFrecuencia('diario')}
+            style={{ ...btnDetalle, ...(frecuencia === 'diario' ? tabBtnActivo : {}) }}
+          >
+            Resumen 1 vez al día
+          </button>
+        </div>
+        <p style={{ ...avisoDesc, marginTop: 10 }}>
+          {frecuencia === 'inmediato'
+            ? 'Te avisamos en cuanto un producto cruce su mínimo, cada vez que pase.'
+            : 'Te mandamos un único resumen al día con todo lo que esté bajo mínimos, para no saturarte de avisos.'}
+        </p>
+      </div>
+
+      <button onClick={handleGuardar} disabled={guardando} style={btnLima}>
+        {guardando ? 'Guardando…' : guardado ? '✓ Guardado' : 'Guardar configuración de avisos'}
+      </button>
+
+      {emailActivo && emailDestino && (
+        <>
+          <button
+            onClick={handleProbarEnvio}
+            disabled={probando}
+            style={{ ...btnDetalle, width: '100%', marginTop: 10, textAlign: 'center', padding: '12px' }}
+          >
+            {probando ? 'Enviando…' : '📧 Probar envío ahora'}
+          </button>
+          {resultadoPrueba && (
+            <p style={{ ...avisoDesc, marginTop: 8, color: resultadoPrueba.ok ? '#7FC9A4' : '#E0725A' }}>
+              {resultadoPrueba.mensaje}
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function ToggleSwitch({ activo, onChange }) {
+  return (
+    <button
+      onClick={() => onChange(!activo)}
+      style={{
+        width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', flexShrink: 0,
+        background: activo ? '#BCE05A' : 'rgba(255,255,255,.15)', position: 'relative', transition: 'background .2s',
+      }}
+    >
+      <span
+        style={{
+          position: 'absolute', top: 3, left: activo ? 23 : 3, width: 18, height: 18, borderRadius: '50%',
+          background: activo ? '#0D3A28' : '#fff', transition: 'left .2s',
+        }}
+      />
+    </button>
+  );
+}
+
 /* ===================== estilos ===================== */
 const wrap = {
   minHeight: '100vh', background: '#0D3A28', display: 'grid', placeItems: 'center',
@@ -1767,6 +2050,15 @@ const btnInfo = {
 const ayudaTexto = {
   color: '#B7C7BE', fontSize: 12.5, lineHeight: 1.5, background: 'rgba(255,255,255,.04)',
   borderRadius: 8, padding: '8px 12px', marginTop: 4,
+};
+const avisoFila = {
+  display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14,
+};
+const avisoTitulo = {
+  color: '#fff', fontWeight: 700, fontSize: 15, marginBottom: 4,
+};
+const avisoDesc = {
+  color: '#8FA79A', fontSize: 13, lineHeight: 1.45,
 };
 const detalleBox = {
   marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.08)',

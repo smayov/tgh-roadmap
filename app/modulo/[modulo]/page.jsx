@@ -1669,6 +1669,7 @@ function Avisos({ negocioId, productosBajoMinimo }) {
   const [whatsappActivo, setWhatsappActivo] = useState(false);
   const [whatsappNumero, setWhatsappNumero] = useState('');
   const [frecuencia, setFrecuencia] = useState('diario');
+  const [ultimaGuardada, setUltimaGuardada] = useState(null); // última config guardada, para detectar cambios
 
   useEffect(() => {
     (async () => {
@@ -1686,6 +1687,24 @@ function Avisos({ negocioId, productosBajoMinimo }) {
         setWhatsappActivo(data.whatsapp_activo);
         setWhatsappNumero(data.whatsapp_numero || '');
         setFrecuencia(data.frecuencia || 'diario');
+        setUltimaGuardada({
+          panel_activo: data.panel_activo,
+          email_activo: data.email_activo,
+          email_destino: data.email_destino || '',
+          whatsapp_activo: data.whatsapp_activo,
+          whatsapp_numero: data.whatsapp_numero || '',
+          frecuencia: data.frecuencia || 'diario',
+        });
+      } else {
+        // Sin configuración previa: la línea base son los valores por defecto del formulario
+        setUltimaGuardada({
+          panel_activo: true,
+          email_activo: false,
+          email_destino: '',
+          whatsapp_activo: false,
+          whatsapp_numero: '',
+          frecuencia: 'diario',
+        });
       }
       setCargando(false);
     })();
@@ -1712,6 +1731,14 @@ function Avisos({ negocioId, productosBajoMinimo }) {
     setGuardando(false);
     if (!error) {
       setGuardado(true);
+      setUltimaGuardada({
+        panel_activo: panelActivo,
+        email_activo: emailActivo,
+        email_destino: emailDestino.trim(),
+        whatsapp_activo: whatsappActivo,
+        whatsapp_numero: whatsappNumero.trim(),
+        frecuencia,
+      });
       setTimeout(() => setGuardado(false), 3000);
     }
   }
@@ -1745,6 +1772,15 @@ function Avisos({ negocioId, productosBajoMinimo }) {
   if (cargando) {
     return <p style={{ color: '#B7C7BE', textAlign: 'center' }}>Cargando configuración de avisos…</p>;
   }
+
+  const hayCambios = !ultimaGuardada || (
+    panelActivo !== ultimaGuardada.panel_activo ||
+    emailActivo !== ultimaGuardada.email_activo ||
+    emailDestino.trim() !== ultimaGuardada.email_destino ||
+    whatsappActivo !== ultimaGuardada.whatsapp_activo ||
+    whatsappNumero.trim() !== ultimaGuardada.whatsapp_numero ||
+    frecuencia !== ultimaGuardada.frecuencia
+  );
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}>
@@ -1848,8 +1884,12 @@ function Avisos({ negocioId, productosBajoMinimo }) {
         </p>
       </div>
 
-      <button onClick={handleGuardar} disabled={guardando} style={btnLima}>
-        {guardando ? 'Guardando…' : guardado ? '✓ Guardado' : 'Guardar configuración de avisos'}
+      <button
+        onClick={handleGuardar}
+        disabled={guardando || !hayCambios}
+        style={{ ...btnLima, ...(!hayCambios && !guardado ? btnLimaApagado : {}) }}
+      >
+        {guardando ? 'Guardando…' : guardado ? '✓ Guardado' : hayCambios ? 'Guardar configuración de avisos' : 'Sin cambios que guardar'}
       </button>
 
       {emailActivo && emailDestino && (
@@ -1933,6 +1973,7 @@ const reassure = { color: '#8FA79A', fontSize: 14, maxWidth: 460, margin: '0 aut
 
 const btn = { width: '100%', padding: 12, borderRadius: 10, border: 'none', background: '#1A6A48', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', marginTop: 16 };
 const btnLima = { width: '100%', padding: 13, borderRadius: 10, border: 'none', background: '#BCE05A', color: '#0D3A28', fontWeight: 800, fontSize: 15, cursor: 'pointer', marginBottom: 10 };
+const btnLimaApagado = { background: 'rgba(255,255,255,.1)', color: '#8FA79A', cursor: 'not-allowed' };
 const btnGhost = { width: '100%', padding: 12, borderRadius: 10, border: '1.5px solid rgba(255,255,255,.25)', background: 'transparent', color: '#EAF3EC', fontWeight: 700, fontSize: 15, cursor: 'pointer' };
 const btnPreview = { marginTop: 20, background: 'rgba(188,224,90,.16)', color: '#BCE05A', border: '1.5px solid rgba(188,224,90,.4)', borderRadius: 10, padding: '11px 22px', fontSize: 15, fontWeight: 700, cursor: 'pointer' };
 

@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import {
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import QRCode from 'qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { supabase } from '../../supabaseClient';
 
 /* ============================================================
@@ -290,6 +292,20 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
   const [subiendoFotoId, setSubiendoFotoId] = useState(null); // producto_id cuya foto se está subiendo
   const [pestana, setPestana] = useState('inventario'); // 'inventario' | 'informes' | 'avisos'
 
+  // QR: mostrar/escanear
+  const searchParams = useSearchParams();
+  const [qrVisibleId, setQrVisibleId] = useState(null); // producto cuyo QR se está mostrando
+  const [qrImagenes, setQrImagenes] = useState({}); // cache de imágenes QR generadas, por producto_id
+  const [escaneando, setEscaneando] = useState(false);
+  const [errorEscaneo, setErrorEscaneo] = useState(null);
+  const scannerRef = useRef(null);
+
+  // Escáner de código de barras (solo para el alta de producto nuevo)
+  const [escaneandoBarcode, setEscaneandoBarcode] = useState(false);
+  const [errorBarcode, setErrorBarcode] = useState(null);
+  const [buscandoProducto, setBuscandoProducto] = useState(false);
+  const scannerBarcodeRef = useRef(null);
+
   // cantidad editable del contador rápido +/- (por producto)
   const [cantidades, setCantidades] = useState({});
   const getCantidad = (id) => cantidades[id] ?? 1;
@@ -531,6 +547,169 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
     cargarNotas(p.id);
   }
 
+  // Abre el detalle de un producto por su id (sin toggle), usado al escanear un QR
+  function abrirDetallePorId(id) {
+    const p = productos.find((pp) => pp.id === id);
+    if (!p) return;
+    setDetalleAbierto(p.id);
+    setEdMinimo(String(p.stock_minimo));
+    setEdCosto(p.costo_unitario != null ? String(p.costo_unitario) : '');
+    cargarHistorial(p.id);
+    cargarNotas(p.id);
+  }
+
+  // Genera (o recupera de caché) la imagen QR de un producto, codificando una URL
+  // que lleva directo a este módulo con ?qr=<id> — funciona incluso desde la cámara nativa del móvil.
+  async function generarQR(producto_id) {
+    if (qrImagenes[producto_id]) { setQrVisibleId(producto_id); return; }
+    const url = `${window.location.origin}/modulo/stock?qr=${producto_id}`;
+    try {
+      const dataUrl = await QRCode.toDataURL(url, { width: 220, margin: 1, color: { dark: '#0D3A28', light: '#FFFFFF' } });
+      setQrImagenes((q) => ({ ...q, [producto_id]: dataUrl }));
+      setQrVisibleId(producto_id);
+    } catch (e) {
+      setError('No se pudo generar el QR: ' + e.message);
+    }
+  }
+
+  // --- Escáner de QR con la cámara ---
+  async function iniciarEscaneo() {
+    setErrorEscaneo(null);
+    setEscaneando(true);
+  }
+
+  useEffect(() => {
+    if (!escaneando) return;
+
+    const scanner = new Html5Qrcode('lector-qr');
+    scannerRef.current = scanner;
+
+    scanner
+      .start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: 220 },
+        (textoDecodificado) => {
+          try {
+            const url = new URL(textoDecodificado);
+            const id = url.searchParams.get('qr');
+            if (id) {
+              detenerEscaneo();
+              setPestana('inventario');
+              abrirDetallePorId(id);
+            }
+          } catch {
+            // No era una URL válida de nuestra app; ignoramos y seguimos escaneando
+          }
+        },
+        () => {} // errores de frame individual, se ignoran (es normal mientras enfoca)
+      )
+      .catch((e) => {
+        setErrorEscaneo('No se pudo acceder a la cámara: ' + e.message);
+        setEscaneando(false);
+      });
+
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(() => {});
+        scannerRef.current.clear();
+      }
+    };
+  }, [escaneando]);
+
+  function detenerEscaneo() {
+    if (scannerRef.current) {
+      scannerRef.current.stop().catch(() => {});
+      scannerRef.current.clear();
+    }
+    setEscaneando(false);
+  }
+
+  // --- Escáner de código de barras (para rellenar el nombre al dar de alta) ---
+  function iniciarEscaneoBarcode() {
+    setErrorBarcode(null);
+    setMostrarAlta(true); // asegura que el formulario de alta esté visible
+    setEscaneandoBarcode(true);
+  }
+
+  function detenerEscaneoBarcode() {
+    if (scannerBarcodeRef.current) {
+      scannerBarcodeRef.current.stop().catch(() => {});
+      scannerBarcodeRef.current.clear();
+    }
+    setEscaneandoBarcode(false);
+  }
+
+  useEffect(() => {
+    if (!escaneandoBarcode) return;
+
+    const scanner = new Html5Qrcode('lector-codigo-barras', {
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.CODE_128,
+      ],
+    });
+    scannerBarcodeRef.current = scanner;
+
+    scanner
+      .start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: 220 },
+        async (codigo) => {
+          detenerEscaneoBarcode();
+          await buscarProductoPorCodigoBarras(codigo);
+        },
+        () => {} // frames sin lectura, normal mientras enfoca
+      )
+      .catch((e) => {
+        setErrorBarcode('No se pudo acceder a la cámara: ' + e.message);
+        setEscaneandoBarcode(false);
+      });
+
+    return () => {
+      if (scannerBarcodeRef.current) {
+        scannerBarcodeRef.current.stop().catch(() => {});
+        scannerBarcodeRef.current.clear();
+      }
+    };
+  }, [escaneandoBarcode]);
+
+  // Busca el producto en Open Food Facts (base de datos pública y gratuita) por su código de barras
+  async function buscarProductoPorCodigoBarras(codigo) {
+    setBuscandoProducto(true);
+    setErrorBarcode(null);
+    try {
+      const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${codigo}.json`);
+      const data = await res.json();
+
+      if (data.status === 1 && data.product) {
+        const nombre = data.product.product_name_es || data.product.product_name || '';
+        const marca = data.product.brands || '';
+        setNuevoNombre(nombre ? (marca ? `${nombre} (${marca})` : nombre) : '');
+        if (!nombre) {
+          setErrorBarcode('Se encontró el producto pero sin nombre registrado. Escríbelo manualmente.');
+        }
+      } else {
+        setErrorBarcode('No se encontró ese código en la base de datos pública. Escribe el nombre manualmente (es normal para productos frescos o marca blanca local).');
+      }
+    } catch (e) {
+      setErrorBarcode('No se pudo consultar la base de datos: ' + e.message);
+    }
+    setBuscandoProducto(false);
+  }
+
+  // Si se entra a la página con ?qr=<id> (ej. desde la cámara nativa del móvil), abrir ese producto
+  useEffect(() => {
+    const qrId = searchParams.get('qr');
+    if (qrId && productos.length > 0) {
+      setPestana('inventario');
+      abrirDetallePorId(qrId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, productos.length]);
+
   function descargarPlantilla() {
     const datos = [
       { Nombre: 'Cerveza 33cl', Unidad: 'ud', 'Stock actual': 24, 'Stock mínimo': 6, 'Precio de coste': 0.85 },
@@ -737,7 +916,22 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
           <button onClick={descargarPlantilla} style={btnImport}>
             📥 Descargar plantilla
           </button>
+
+          <button onClick={iniciarEscaneo} style={btnImport}>
+            📷 Escanear QR
+          </button>
         </div>
+
+        {escaneando && (
+          <div style={{ ...informeCard, marginBottom: 16 }}>
+            <div style={informeTitulo}>📷 Apunta la cámara al QR del producto</div>
+            <div id="lector-qr" style={{ width: '100%', maxWidth: 320, margin: '10px auto', borderRadius: 12, overflow: 'hidden' }} />
+            {errorEscaneo && <p style={{ color: '#E0725A', fontSize: 13 }}>{errorEscaneo}</p>}
+            <button onClick={detenerEscaneo} style={{ ...btnDetalle, width: '100%', marginTop: 10 }}>
+              Cancelar
+            </button>
+          </div>
+        )}
 
         <p style={hintImport}>
           Si subes un producto que ya tenías dado de alta (mismo nombre), se actualizará en vez de crear uno duplicado.
@@ -789,13 +983,38 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
           <form onSubmit={handleAltaProducto} style={altaBox}>
             <div>
               <label style={campoLabel}>Nombre del producto</label>
-              <input
-                placeholder="ej. Cerveza 33cl"
-                value={nuevoNombre}
-                onChange={(e) => setNuevoNombre(e.target.value)}
-                style={{ ...input, width: '100%' }}
-                required
-              />
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  placeholder="ej. Cerveza 33cl"
+                  value={nuevoNombre}
+                  onChange={(e) => setNuevoNombre(e.target.value)}
+                  style={{ ...input, flex: 1 }}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={iniciarEscaneoBarcode}
+                  style={{ ...btnDetalle, flexShrink: 0 }}
+                  title="Escanear código de barras del producto"
+                >
+                  📷
+                </button>
+              </div>
+              <p style={costoHint}>
+                Escanea el código de barras del envase para rellenar el nombre automáticamente
+                (funciona con productos envasados de marca; no con género fresco o a granel).
+              </p>
+
+              {escaneandoBarcode && (
+                <div style={{ ...informeCard, marginTop: 8 }}>
+                  <div id="lector-codigo-barras" style={{ width: '100%', maxWidth: 280, margin: '0 auto', borderRadius: 12, overflow: 'hidden' }} />
+                  <button type="button" onClick={detenerEscaneoBarcode} style={{ ...btnDetalle, width: '100%', marginTop: 10 }}>
+                    Cancelar
+                  </button>
+                </div>
+              )}
+              {buscandoProducto && <p style={{ ...costoHint, marginTop: 6 }}>Buscando producto…</p>}
+              {errorBarcode && <p style={{ ...costoHint, marginTop: 6, color: '#E0A92A' }}>{errorBarcode}</p>}
             </div>
             <div>
               <label style={campoLabel}>Unidad</label>
@@ -950,6 +1169,13 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
                     </button>
                   </div>
                   <button
+                    onClick={() => generarQR(p.id)}
+                    style={btnDetalle}
+                    title="Generar QR de acceso rápido a este producto"
+                  >
+                    🔳
+                  </button>
+                  <button
                     onClick={() => abrirDetalle(p)}
                     style={btnDetalle}
                   >
@@ -957,6 +1183,27 @@ function PanelStock({ negocioId, negocioNombre, userId, info }) {
                   </button>
                 </div>
               </div>
+
+              {qrVisibleId === p.id && qrImagenes[p.id] && (
+                <div style={{ ...detalleBox, textAlign: 'center' }}>
+                  <p style={{ color: '#B7C7BE', fontSize: 13, marginBottom: 8 }}>
+                    Imprime este QR y pégalo en el envase o la balda — al escanearlo abrirás esta ficha directamente.
+                  </p>
+                  <img src={qrImagenes[p.id]} alt={`QR de ${p.nombre}`} style={{ width: 160, height: 160, borderRadius: 8, background: '#fff', padding: 6 }} />
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 10 }}>
+                    <a
+                      href={qrImagenes[p.id]}
+                      download={`qr-${p.nombre.replace(/[^a-z0-9]+/gi, '_')}.png`}
+                      style={{ ...btnDetalle, textDecoration: 'none', display: 'inline-block' }}
+                    >
+                      ⬇️ Descargar
+                    </a>
+                    <button onClick={() => setQrVisibleId(null)} style={btnDetalle}>
+                      Cerrar
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {detalleAbierto === p.id && (
                 <div style={detalleBox}>

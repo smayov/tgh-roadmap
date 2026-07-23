@@ -5,10 +5,20 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
-  // Solo Vercel (con el CRON_SECRET correcto) puede ejecutar esto
   const authHeader = req.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  const secretoServidor = process.env.CRON_SECRET;
+
+  if (authHeader !== `Bearer ${secretoServidor}`) {
+    // DIAGNÓSTICO TEMPORAL: no revela el valor, solo si existe y su longitud
+    return new Response(JSON.stringify({
+      error: 'Unauthorized',
+      diagnostico: {
+        secreto_configurado_en_servidor: !!secretoServidor,
+        longitud_secreto_servidor: secretoServidor ? secretoServidor.length : 0,
+        cabecera_recibida_existe: !!authHeader,
+        longitud_cabecera_recibida: authHeader ? authHeader.length : 0,
+      }
+    }), { status: 401 });
   }
 
   const supabaseAdmin = createClient(
@@ -17,7 +27,6 @@ export async function GET(req) {
     { auth: { persistSession: false } }
   );
 
-  // Todos los negocios con el email de avisos activado
   const { data: configuraciones, error } = await supabaseAdmin
     .from('configuracion_avisos')
     .select('negocio_id')

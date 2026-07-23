@@ -6,19 +6,8 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
   const authHeader = req.headers.get('authorization');
-  const secretoServidor = process.env.CRON_SECRET;
-
-  if (authHeader !== `Bearer ${secretoServidor}`) {
-    // DIAGNÓSTICO TEMPORAL: no revela el valor, solo si existe y su longitud
-    return new Response(JSON.stringify({
-      error: 'Unauthorized',
-      diagnostico: {
-        secreto_configurado_en_servidor: !!secretoServidor,
-        longitud_secreto_servidor: secretoServidor ? secretoServidor.length : 0,
-        cabecera_recibida_existe: !!authHeader,
-        longitud_cabecera_recibida: authHeader ? authHeader.length : 0,
-      }
-    }), { status: 401 });
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
   const supabaseAdmin = createClient(

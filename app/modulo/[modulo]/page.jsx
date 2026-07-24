@@ -2214,6 +2214,9 @@ function PanelEmpleados({ negocioId, info }) {
   const [tipoFichaje, setTipoFichaje] = useState('fijo');
   const [diasVacaciones, setDiasVacaciones] = useState('30');
   const [pin, setPin] = useState('');
+  const [fotoArchivo, setFotoArchivo] = useState(null);
+  const [fotosFirmadas, setFotosFirmadas] = useState({}); // empleado_id -> URL temporal
+  const [subiendoFotoId, setSubiendoFotoId] = useState(null);
 
   useEffect(() => {
     if (negocioId) cargarEmpleados();
@@ -2228,9 +2231,43 @@ function PanelEmpleados({ negocioId, info }) {
       .eq('activo', true)
       .order('nombre', { ascending: true });
 
-    if (error) setError(error.message);
-    else setEmpleados(data || []);
+    if (error) { setError(error.message); setCargando(false); return; }
+    setEmpleados(data || []);
+
+    // Generamos enlaces temporales (1h) solo para los que tienen foto guardada
+    const conFoto = (data || []).filter((e) => e.foto_path);
+    const nuevasUrls = {};
+    for (const emp of conFoto) {
+      const { data: firmada } = await supabase.storage
+        .from('empleados-fotos')
+        .createSignedUrl(emp.foto_path, 3600);
+      if (firmada) nuevasUrls[emp.id] = firmada.signedUrl;
+    }
+    setFotosFirmadas(nuevasUrls);
     setCargando(false);
+  }
+
+  async function subirFotoEmpleado(empleadoId, archivo) {
+    if (!archivo) return;
+    setSubiendoFotoId(empleadoId);
+    try {
+      const ext = archivo.name.split('.').pop();
+      const ruta = `${negocioId}/${empleadoId}-${Date.now()}.${ext}`;
+      const { error: errUpload } = await supabase.storage
+        .from('empleados-fotos')
+        .upload(ruta, archivo, { upsert: true });
+      if (errUpload) { setError(errUpload.message); return; }
+
+      const { error: errUpd } = await supabase
+        .from('empleados')
+        .update({ foto_path: ruta })
+        .eq('id', empleadoId);
+      if (errUpd) { setError(errUpd.message); return; }
+
+      await cargarEmpleados();
+    } finally {
+      setSubiendoFotoId(null);
+    }
   }
 
   async function handleAltaEmpleado(e) {
@@ -2246,20 +2283,29 @@ function PanelEmpleados({ negocioId, info }) {
     const hash = await hashearPin(pin, sal);
     const pinHashCompleto = `${sal}:${hash}`;
 
-    const { error: errIns } = await supabase.from('empleados').insert({
-      negocio_id: negocioId,
-      nombre: nombre.trim(),
-      dni_nie: dniNie.trim() || null,
-      telefono: telefono.trim() || null,
-      tipo_fichaje: tipoFichaje,
-      dias_vacaciones_anuales: Number(diasVacaciones) || 30,
-      pin_hash: pinHashCompleto,
-    });
+    const { data: nuevoEmpleado, error: errIns } = await supabase
+      .from('empleados')
+      .insert({
+        negocio_id: negocioId,
+        nombre: nombre.trim(),
+        dni_nie: dniNie.trim() || null,
+        telefono: telefono.trim() || null,
+        tipo_fichaje: tipoFichaje,
+        dias_vacaciones_anuales: Number(diasVacaciones) || 30,
+        pin_hash: pinHashCompleto,
+      })
+      .select()
+      .single();
+
+    if (errIns) { setGuardandoAlta(false); setError(errIns.message); return; }
+
+    // Si se eligió una foto, se sube ahora que ya tenemos el id del empleado
+    if (fotoArchivo) {
+      await subirFotoEmpleado(nuevoEmpleado.id, fotoArchivo);
+    }
 
     setGuardandoAlta(false);
-    if (errIns) { setError(errIns.message); return; }
-
-    setNombre(''); setDniNie(''); setTelefono(''); setTipoFichaje('fijo'); setDiasVacaciones('30'); setPin('');
+    setNombre(''); setDniNie(''); setTelefono(''); setTipoFichaje('fijo'); setDiasVacaciones('30'); setPin(''); setFotoArchivo(null);
     setMostrarAlta(false);
     await cargarEmpleados();
   }
@@ -2327,6 +2373,16 @@ function PanelEmpleados({ negocioId, info }) {
               />
               <p style={costoHint}>El empleado usará este PIN para fichar. Se guarda cifrado, nunca en texto plano.</p>
             </div>
+            <div>
+              <label style={campoLabel}>Foto (opcional)</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setFotoArchivo(e.target.files?.[0] || null)}
+                style={{ ...input, width: '100%', padding: '8px 12px' }}
+              />
+              <p style={costoHint}>Solo para identificarlo visualmente en el panel. Se guarda de forma privada, nadie fuera del negocio puede verla.</p>
+            </div>
             <button type="submit" disabled={guardandoAlta} style={btnLima}>
               {guardandoAlta ? 'Guardando…' : 'Guardar empleado'}
             </button>
@@ -2340,11 +2396,28 @@ function PanelEmpleados({ negocioId, info }) {
           <div key={emp.id} style={{ ...productoRow, position: 'relative' }}>
             <button onClick={() => handleBaja(emp)} style={btnEliminar} title="Dar de baja">🗑️</button>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>{emp.nombre}</div>
-                <div style={{ color: '#8FA79A', fontSize: 13, marginTop: 2 }}>
-                  {emp.tipo_fichaje === 'fijo' ? '📍 Puesto fijo' : '📱 Movilidad'} · {emp.dias_vacaciones_anuales} días/año
-                  {emp.telefono && ` · ${emp.telefono}`}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={fotoWrap}>
+                  {fotosFirmadas[emp.id] ? (
+                    <img src={fotosFirmadas[emp.id]} alt={emp.nombre} style={fotoImg} />
+                  ) : (
+                    <div style={fotoEmoji}>👤</div>
+                  )}
+                  <label style={fotoBtnCam} title="Subir/cambiar foto">
+                    {subiendoFotoId === emp.id ? '…' : '📷'}
+                    <input
+                      type="file" accept="image/*" style={{ display: 'none' }}
+                      disabled={subiendoFotoId === emp.id}
+                      onChange={(e) => subirFotoEmpleado(emp.id, e.target.files?.[0])}
+                    />
+                  </label>
+                </div>
+                <div>
+                  <div style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>{emp.nombre}</div>
+                  <div style={{ color: '#8FA79A', fontSize: 13, marginTop: 2 }}>
+                    {emp.tipo_fichaje === 'fijo' ? '📍 Puesto fijo' : '📱 Movilidad'} · {emp.dias_vacaciones_anuales} días/año
+                    {emp.telefono && ` · ${emp.telefono}`}
+                  </div>
                 </div>
               </div>
             </div>

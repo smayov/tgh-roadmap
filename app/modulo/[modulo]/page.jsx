@@ -84,7 +84,7 @@ const INFO = {
   },
 };
 
-const MODULOS_FUNCIONALES = ['stock'];
+const MODULOS_FUNCIONALES = ['stock', 'empleados'];
 
 export default function ModuloPage() {
   const router = useRouter();
@@ -160,7 +160,12 @@ export default function ModuloPage() {
       <div style={wrapPanel}>
         <div style={containerPanel}>
           <button onClick={() => router.push('/panel')} style={backLink}>← Volver al panel</button>
-          <PanelStock negocioId={negocioId} negocioNombre={negocioNombre} userId={userId} info={info} />
+          {moduloId === 'stock' && (
+            <PanelStock negocioId={negocioId} negocioNombre={negocioNombre} userId={userId} info={info} />
+          )}
+          {moduloId === 'empleados' && (
+            <PanelEmpleados negocioId={negocioId} info={info} />
+          )}
         </div>
       </div>
     );
@@ -2175,6 +2180,178 @@ function ToggleSwitch({ activo, onChange }) {
         }}
       />
     </button>
+  );
+}
+
+/* ============================================================
+   PANEL DE EMPLEADOS — alta y gestión básica (fichajes/vacaciones/turnos
+   se construyen en próximas sesiones; esto sienta la base: la ficha del empleado)
+   ============================================================ */
+
+// Convierte un PIN en un hash con sal, usando Web Crypto (nativo del navegador, sin librerías)
+async function hashearPin(pin, salHex) {
+  const encoder = new TextEncoder();
+  const datos = encoder.encode(salHex + pin);
+  const hashBuffer = await window.crypto.subtle.digest('SHA-256', datos);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+function generarSal() {
+  const bytes = window.crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function PanelEmpleados({ negocioId, info }) {
+  const [empleados, setEmpleados] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState(null);
+  const [mostrarAlta, setMostrarAlta] = useState(false);
+  const [guardandoAlta, setGuardandoAlta] = useState(false);
+
+  const [nombre, setNombre] = useState('');
+  const [dniNie, setDniNie] = useState('');
+  const [telefono, setTelefono] = useState('');
+  const [tipoFichaje, setTipoFichaje] = useState('fijo');
+  const [diasVacaciones, setDiasVacaciones] = useState('30');
+  const [pin, setPin] = useState('');
+
+  useEffect(() => {
+    if (negocioId) cargarEmpleados();
+  }, [negocioId]);
+
+  async function cargarEmpleados() {
+    setCargando(true);
+    const { data, error } = await supabase
+      .from('empleados')
+      .select('*')
+      .eq('negocio_id', negocioId)
+      .eq('activo', true)
+      .order('nombre', { ascending: true });
+
+    if (error) setError(error.message);
+    else setEmpleados(data || []);
+    setCargando(false);
+  }
+
+  async function handleAltaEmpleado(e) {
+    e.preventDefault();
+    if (!nombre.trim() || pin.length < 4) {
+      setError('El nombre es obligatorio y el PIN debe tener al menos 4 dígitos.');
+      return;
+    }
+    setGuardandoAlta(true);
+    setError(null);
+
+    const sal = generarSal();
+    const hash = await hashearPin(pin, sal);
+    const pinHashCompleto = `${sal}:${hash}`;
+
+    const { error: errIns } = await supabase.from('empleados').insert({
+      negocio_id: negocioId,
+      nombre: nombre.trim(),
+      dni_nie: dniNie.trim() || null,
+      telefono: telefono.trim() || null,
+      tipo_fichaje: tipoFichaje,
+      dias_vacaciones_anuales: Number(diasVacaciones) || 30,
+      pin_hash: pinHashCompleto,
+    });
+
+    setGuardandoAlta(false);
+    if (errIns) { setError(errIns.message); return; }
+
+    setNombre(''); setDniNie(''); setTelefono(''); setTipoFichaje('fijo'); setDiasVacaciones('30'); setPin('');
+    setMostrarAlta(false);
+    await cargarEmpleados();
+  }
+
+  async function handleBaja(empleado) {
+    const confirmado = window.confirm(`¿Dar de baja a "${empleado.nombre}"? No se borrará su historial de fichajes.`);
+    if (!confirmado) return;
+    const { error } = await supabase.from('empleados').update({ activo: false }).eq('id', empleado.id);
+    if (error) { setError(error.message); return; }
+    await cargarEmpleados();
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 44, marginBottom: 6 }}>{info.icono}</div>
+      <div style={eyebrow}>{info.sub}</div>
+      <h1 style={h1Big}>{info.titulo}</h1>
+
+      {error && <div style={errorBox}>{error}</div>}
+
+      <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}>
+        <button
+          onClick={() => setMostrarAlta((v) => !v)}
+          style={{ ...btnLima, width: 'auto', padding: '10px 20px', marginBottom: 16 }}
+        >
+          {mostrarAlta ? 'Cancelar' : '+ Añadir empleado'}
+        </button>
+
+        {mostrarAlta && (
+          <form onSubmit={handleAltaEmpleado} style={altaBox}>
+            <div>
+              <label style={campoLabel}>Nombre completo</label>
+              <input value={nombre} onChange={(e) => setNombre(e.target.value)} style={{ ...input, width: '100%' }} required />
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <label style={campoLabel}>DNI/NIE (opcional)</label>
+                <input value={dniNie} onChange={(e) => setDniNie(e.target.value)} style={{ ...input, width: '100%' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={campoLabel}>Teléfono (opcional)</label>
+                <input value={telefono} onChange={(e) => setTelefono(e.target.value)} style={{ ...input, width: '100%' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <label style={campoLabel}>Tipo de fichaje</label>
+                <select value={tipoFichaje} onChange={(e) => setTipoFichaje(e.target.value)} style={input}>
+                  <option style={optionStyle} value="fijo">Puesto fijo (PIN en local)</option>
+                  <option style={optionStyle} value="movilidad">Movilidad (móvil propio)</option>
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={campoLabel}>Días de vacaciones/año</label>
+                <input type="number" min="0" value={diasVacaciones} onChange={(e) => setDiasVacaciones(e.target.value)} style={{ ...input, width: '100%' }} />
+              </div>
+            </div>
+            <div>
+              <label style={campoLabel}>PIN de fichaje (4-6 dígitos)</label>
+              <input
+                type="password" inputMode="numeric" maxLength={6}
+                value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                style={{ ...input, width: 120 }}
+                placeholder="1234"
+              />
+              <p style={costoHint}>El empleado usará este PIN para fichar. Se guarda cifrado, nunca en texto plano.</p>
+            </div>
+            <button type="submit" disabled={guardandoAlta} style={btnLima}>
+              {guardandoAlta ? 'Guardando…' : 'Guardar empleado'}
+            </button>
+          </form>
+        )}
+
+        {cargando && <p style={{ color: '#B7C7BE' }}>Cargando empleados…</p>}
+        {!cargando && empleados.length === 0 && <p style={{ color: '#B7C7BE' }}>Aún no has dado de alta ningún empleado.</p>}
+
+        {!cargando && empleados.map((emp) => (
+          <div key={emp.id} style={{ ...productoRow, position: 'relative' }}>
+            <button onClick={() => handleBaja(emp)} style={btnEliminar} title="Dar de baja">🗑️</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>{emp.nombre}</div>
+                <div style={{ color: '#8FA79A', fontSize: 13, marginTop: 2 }}>
+                  {emp.tipo_fichaje === 'fijo' ? '📍 Puesto fijo' : '📱 Movilidad'} · {emp.dias_vacaciones_anuales} días/año
+                  {emp.telefono && ` · ${emp.telefono}`}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

@@ -6,11 +6,16 @@ import { supabase } from "../supabaseClient";
 
 /* ============================================================
    ESCRITORIO / PANEL DE MÓDULOS
-   Muestra los 5 módulos como tarjetas. Los contratados se ven
+   Muestra los módulos como tarjetas. Los contratados se ven
    a color y son clicables; los no contratados salen apagados
    con candado y llevan al catálogo para contratarlos.
    Los id (verifactu, facturacion...) deben COINCIDIR con la
    columna "modulo" de la tabla modulos_activos.
+
+   Los datos se recargan solos al recuperar el foco de la pestaña,
+   para que un cambio hecho en otro sitio (pago, alta manual en
+   Supabase...) se refleje sin que el usuario tenga que recargar
+   la página a mano.
    ============================================================ */
 const MODULOS = [
   { id: "verifactu",   icono: "🧾", titulo: "VeriFactu",          sub: "Cumplimiento fiscal" },
@@ -27,30 +32,48 @@ export default function Panel() {
   const [negocio, setNegocio] = useState(null);
   const [activos, setActivos] = useState([]); // array de ids activos
 
+  async function cargarDatos() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { router.push("/acceso"); return; }
+
+    // Negocio del usuario
+    const { data: neg } = await supabase
+      .from("negocios")
+      .select("id, nombre")
+      .eq("propietario", user.id)
+      .maybeSingle();
+
+    if (neg) {
+      setNegocio(neg);
+      // Módulos activos de ese negocio
+      const { data: mods } = await supabase
+        .from("modulos_activos")
+        .select("modulo, estado")
+        .eq("negocio_id", neg.id)
+        .eq("estado", "activo");
+      setActivos((mods || []).map((m) => m.modulo));
+    }
+    setCargando(false);
+  }
+
   useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/acceso"); return; }
+    cargarDatos();
 
-      // Negocio del usuario
-      const { data: neg } = await supabase
-        .from("negocios")
-        .select("id, nombre")
-        .eq("propietario", user.id)
-        .maybeSingle();
+    // Recarga los datos solos al volver a esta pestaña (sin recarga manual)
+    function alRecuperarFoco() {
+      cargarDatos();
+    }
+    function alCambiarVisibilidad() {
+      if (document.visibilityState === "visible") cargarDatos();
+    }
+    window.addEventListener("focus", alRecuperarFoco);
+    document.addEventListener("visibilitychange", alCambiarVisibilidad);
 
-      if (neg) {
-        setNegocio(neg);
-        // Módulos activos de ese negocio
-        const { data: mods } = await supabase
-          .from("modulos_activos")
-          .select("modulo, estado")
-          .eq("negocio_id", neg.id)
-          .eq("estado", "activo");
-        setActivos((mods || []).map((m) => m.modulo));
-      }
-      setCargando(false);
-    })();
+    return () => {
+      window.removeEventListener("focus", alRecuperarFoco);
+      document.removeEventListener("visibilitychange", alCambiarVisibilidad);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   const salir = async () => {
@@ -59,8 +82,6 @@ export default function Panel() {
   };
 
   const abrirModulo = (id) => {
-    // De momento cada módulo lleva a su propia ruta (a construir).
-    // Si aún no existe, mostrará el 404 de Next hasta que la creemos.
     router.push(`/modulo/${id}`);
   };
 

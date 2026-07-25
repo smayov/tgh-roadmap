@@ -16,19 +16,13 @@ export default function FicharPage({ params }) {
   // en la pantalla de espera. Es solo del navegador (no persiste al recargar), útil sobre
   // todo para el caso de "movilidad" donde el dispositivo es personal del empleado.
   const [turnoEnCurso, setTurnoEnCurso] = useState(null); // { nombre, horaEntrada, horaSalida }
-  const [anchoBarraTurno, setAnchoBarraTurno] = useState(0);
-
-  useEffect(() => {
-    if (!turnoEnCurso || turnoEnCurso.horaSalida) return;
-    setAnchoBarraTurno(6);
-    // Doble rAF: el primero deja que el navegador "pinte" el 6% real;
-    // solo entonces lanzamos el cambio a 90%, o si no, salta directo sin animar.
-    const raf1 = requestAnimationFrame(() => {
-      const raf2 = requestAnimationFrame(() => setAnchoBarraTurno(90));
-      return () => cancelAnimationFrame(raf2);
-    });
-    return () => cancelAnimationFrame(raf1);
-  }, [turnoEnCurso?.horaEntradaISO]);
+  function anchoBarraSegunTiempo(desdeISO) {
+    if (!desdeISO) return 6;
+    const minutos = Math.max(0, (horaActual - new Date(desdeISO)) / 60000);
+    const JORNADA_REFERENCIA_MIN = 8 * 60; // 8h como referencia orientativa, no un dato real
+    const porcentaje = 6 + (minutos / JORNADA_REFERENCIA_MIN) * 89;
+    return Math.min(95, porcentaje);
+  }
 
   useEffect(() => {
     const intervalo = setInterval(() => setHoraActual(new Date()), 1000);
@@ -247,11 +241,11 @@ export default function FicharPage({ params }) {
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#E8DFCE]">
                   <div
-                    className="h-full rounded-full bg-[#4CAF6D] ease-linear"
+                    className="h-full rounded-full bg-[#4CAF6D] transition-all duration-1000 ease-linear"
                     style={{
-                      width: turnoEnCurso.horaSalida ? "100%" : `${anchoBarraTurno}%`,
-                      transitionProperty: "width",
-                      transitionDuration: turnoEnCurso.horaSalida ? "500ms" : "40000ms",
+                      width: turnoEnCurso.horaSalida
+                        ? "100%"
+                        : `${anchoBarraSegunTiempo(turnoEnCurso.horaEntradaISO)}%`,
                     }}
                   />
                 </div>

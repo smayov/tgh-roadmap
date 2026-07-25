@@ -13,7 +13,7 @@ export default function FicharPage({ params }) {
     setTimeout(() => {
       setPin("");
       setResultado({ estado: "idle" });
-    }, 3000);
+    }, 4500);
   }, []);
 
   function obtenerUbicacion() {

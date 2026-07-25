@@ -269,7 +269,7 @@ export default function VacacionesPage({ params }) {
 
                   {exito && (
                     <div className="rounded-xl bg-[#EAF1EA] px-5 py-3 text-sm font-medium text-[#2F4538]">
-                      Solicitud enviada. El dueño la revisará en breve.
+                      Solicitud enviada. Tu encargado ya la tiene y te avisará en cuanto la revise.
                     </div>
                   )}
 

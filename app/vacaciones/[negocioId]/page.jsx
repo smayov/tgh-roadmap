@@ -16,6 +16,7 @@ export default function VacacionesPage({ params }) {
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
   const [exito, setExito] = useState(false);
+  const [ultimaSolicitud, setUltimaSolicitud] = useState(null);
 
   const hoy = new Date().toISOString().split("T")[0];
 
@@ -100,6 +101,7 @@ export default function VacacionesPage({ params }) {
       }
 
       setExito(true);
+      setUltimaSolicitud({ inicio: fechaInicio, fin: fechaFin });
       setFechaInicio("");
       setFechaFin("");
       await cargarSaldo(empleado.empleadoId);
@@ -231,6 +233,38 @@ export default function VacacionesPage({ params }) {
                   </div>
                 )}
 
+                {exito ? (
+                  <div className="text-center">
+                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#EAF1EA]">
+                      <svg
+                        className="h-6 w-6 text-[#2F4538]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <p className="mb-1 text-lg font-medium text-[#1F2420]">
+                      Solicitud enviada
+                    </p>
+                    <p className="mb-6 text-sm text-[#6B6155]">
+                      Del {new Date(ultimaSolicitud.inicio).toLocaleDateString("es-ES")} al{" "}
+                      {new Date(ultimaSolicitud.fin).toLocaleDateString("es-ES")}. Tu responsable
+                      ya la ha recibido y te avisará en cuanto la revise.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setExito(false);
+                        setUltimaSolicitud(null);
+                      }}
+                      className="w-full rounded-lg border border-[#2F4538] bg-white px-4 py-3 text-sm font-medium text-[#2F4538] transition hover:bg-[#F6F2E9]"
+                    >
+                      Solicitar otras fechas
+                    </button>
+                  </div>
+                ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -267,12 +301,6 @@ export default function VacacionesPage({ params }) {
                     </div>
                   )}
 
-                  {exito && (
-                    <div className="rounded-xl bg-[#EAF1EA] px-5 py-3 text-sm font-medium text-[#2F4538]">
-                      Solicitud enviada. Tu encargado ya la tiene y te avisará en cuanto la revise.
-                    </div>
-                  )}
-
                   <button
                     type="submit"
                     disabled={enviando}
@@ -281,6 +309,7 @@ export default function VacacionesPage({ params }) {
                     {enviando ? "Enviando…" : "Enviar solicitud"}
                   </button>
                 </form>
+                )}
               </>
             )}
           </div>

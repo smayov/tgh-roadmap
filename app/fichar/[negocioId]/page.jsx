@@ -278,13 +278,13 @@ export default function FicharPage({ params }) {
                 </div>
               </div>
             ) : (
-              <div className="mx-auto grid max-w-[210px] grid-cols-3 gap-2">
+              <div className="mx-auto grid max-w-[180px] grid-cols-3 gap-2">
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
                   <button
                     key={d}
                     onClick={() => handleDigit(d)}
                     disabled={enviando}
-                    className="flex h-[54px] w-[54px] items-center justify-center rounded-full border border-[#EDE6D6] bg-[#FDFBF7] text-2xl font-medium text-[#1F2420] shadow-sm transition-all hover:border-[#2F4538]/30 hover:bg-white active:scale-95 disabled:opacity-40"
+                    className="flex h-[46px] w-[46px] items-center justify-center rounded-full border border-[#EDE6D6] bg-[#FDFBF7] text-lg font-medium text-[#1F2420] shadow-sm transition-all hover:border-[#2F4538]/30 hover:bg-white active:scale-95 disabled:opacity-40"
                   >
                     {d}
                   </button>
@@ -293,14 +293,14 @@ export default function FicharPage({ params }) {
                 <button
                   onClick={() => handleDigit("0")}
                   disabled={enviando}
-                  className="flex h-[54px] w-[54px] items-center justify-center rounded-full border border-[#EDE6D6] bg-[#FDFBF7] text-2xl font-medium text-[#1F2420] shadow-sm transition-all hover:border-[#2F4538]/30 hover:bg-white active:scale-95 disabled:opacity-40"
+                  className="flex h-[46px] w-[46px] items-center justify-center rounded-full border border-[#EDE6D6] bg-[#FDFBF7] text-lg font-medium text-[#1F2420] shadow-sm transition-all hover:border-[#2F4538]/30 hover:bg-white active:scale-95 disabled:opacity-40"
                 >
                   0
                 </button>
                 <button
                   onClick={handleBorrar}
                   disabled={enviando || pin.length === 0}
-                  className="flex h-[54px] w-[54px] items-center justify-center rounded-full text-base font-medium text-[#9A8F7D] transition-all hover:text-[#1F2420] active:scale-95 disabled:opacity-30"
+                  className="flex h-[46px] w-[46px] items-center justify-center rounded-full text-base font-medium text-[#9A8F7D] transition-all hover:text-[#1F2420] active:scale-95 disabled:opacity-30"
                 >
                   ⌫
                 </button>
@@ -310,7 +310,7 @@ export default function FicharPage({ params }) {
               <button
                 onClick={() => enviarPin(pin)}
                 disabled={pin.length !== 4 || enviando}
-                className="mx-auto mt-3 block w-full max-w-[210px] rounded-xl bg-gradient-to-r from-[#2F4538] to-[#3D5748] py-3 text-sm font-medium tracking-wide text-white shadow-[0_4px_14px_rgba(47,69,56,0.35)] transition-all hover:shadow-[0_6px_18px_rgba(47,69,56,0.45)] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-gradient-to-r disabled:from-[#E3DAC7] disabled:to-[#E3DAC7] disabled:text-[#B0A48D] disabled:shadow-none"
+                className="mx-auto mt-3 block w-full max-w-[180px] rounded-xl bg-gradient-to-r from-[#2F4538] to-[#3D5748] py-3 text-sm font-medium tracking-wide text-white shadow-[0_4px_14px_rgba(47,69,56,0.35)] transition-all hover:shadow-[0_6px_18px_rgba(47,69,56,0.45)] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-gradient-to-r disabled:from-[#E3DAC7] disabled:to-[#E3DAC7] disabled:text-[#B0A48D] disabled:shadow-none"
               >
                 {enviando ? "Registrando…" : "Registrar fichaje"}
               </button>

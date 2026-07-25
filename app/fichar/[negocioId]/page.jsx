@@ -129,7 +129,7 @@ export default function FicharPage({ params }) {
       <div className="w-full max-w-md">
         {/* Carcasa del terminal */}
         <div
-          className="relative rounded-[28px] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.35)]"
+          className="relative rounded-[24px] p-3 shadow-[0_20px_50px_rgba(0,0,0,0.35)]"
           style={{
             background: "linear-gradient(155deg, #4A4A48 0%, #2E2E2C 55%, #232321 100%)",
           }}
@@ -164,10 +164,10 @@ export default function FicharPage({ params }) {
           <div className="overflow-hidden rounded-2xl border border-[#E8DFCE] bg-white shadow-[inset_0_2px_8px_rgba(0,0,0,0.15)]">
             <div className="h-1.5 bg-gradient-to-r from-[#2F4538] to-[#B8933F]" />
 
-            <div className="p-5">
-              <div className="mb-3 text-center">
+            <div className="p-4">
+              <div className="mb-2 text-center">
                 <svg
-                  className="mx-auto mb-2 h-12 w-12"
+                  className="mx-auto mb-1.5 h-9 w-9"
                   viewBox="0 0 64 64"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
@@ -196,16 +196,16 @@ export default function FicharPage({ params }) {
                   <line x1="34" y1="43" x2="46" y2="43" stroke="#D8CFBC" strokeWidth="1.4" strokeLinecap="round" />
                   <line x1="34" y1="48" x2="42" y2="48" stroke="#D8CFBC" strokeWidth="1.4" strokeLinecap="round" />
                 </svg>
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#B8933F]">
+                <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B8933F]">
                   Tu Gestor Hostelero
                 </p>
                 <h1
-                  className="text-3xl font-medium text-[#1F2420]"
+                  className="text-2xl font-medium text-[#1F2420]"
                   style={{ fontFamily: "'Iowan Old Style', 'Georgia', serif" }}
                 >
                   Fichar
                 </h1>
-                <p className="mt-1 font-mono text-sm tabular-nums tracking-wider text-[#9A8F7D]">
+                <p className="mt-0.5 font-mono text-xs tabular-nums tracking-wider text-[#9A8F7D]">
                   {horaActual.toLocaleTimeString("es-ES")}
                   {" · "}
                   {horaActual.toLocaleDateString("es-ES", {
@@ -216,7 +216,7 @@ export default function FicharPage({ params }) {
                 </p>
               </div>
 
-            <div className="mb-4 flex justify-center gap-4">
+            <div className="mb-3 flex justify-center gap-4">
               {[0, 1, 2, 3].map((i) => (
                 <div
                   key={i}
@@ -230,7 +230,7 @@ export default function FicharPage({ params }) {
             </div>
 
             {!mostrandoResultado && turnoEnCurso && (
-              <div className="mb-4 rounded-xl bg-[#F6F2E9] px-4 py-3">
+              <div className="mb-3 rounded-xl bg-[#F6F2E9] px-3 py-2.5">
                 <div className="mb-1.5 flex items-center justify-between text-xs text-[#6B6155]">
                   <span>Entrada · {turnoEnCurso.horaEntrada ?? "—"}</span>
                   <span>

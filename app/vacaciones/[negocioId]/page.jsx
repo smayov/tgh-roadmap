@@ -252,7 +252,7 @@ export default function VacacionesPage({ params }) {
                     <p className="mb-6 text-sm text-[#6B6155]">
                       Del {new Date(ultimaSolicitud.inicio).toLocaleDateString("es-ES")} al{" "}
                       {new Date(ultimaSolicitud.fin).toLocaleDateString("es-ES")}. Tu responsable
-                      ya la ha recibido y te avisará en cuanto la revise.
+                      ya tiene tu solicitud de vacaciones y te avisará en cuanto la revise.
                     </p>
                     <button
                       onClick={() => {

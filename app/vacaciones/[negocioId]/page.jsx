@@ -128,7 +128,7 @@ export default function VacacionesPage({ params }) {
           {/* Franja superior de acento */}
           <div className="h-1.5 bg-gradient-to-r from-[#2F4538] to-[#B8933F]" />
 
-          <div className="p-8">
+          <div className="p-6">
             {!empleado ? (
               <>
                 <h1
@@ -137,11 +137,11 @@ export default function VacacionesPage({ params }) {
                 >
                   Vacaciones
                 </h1>
-                <p className="mb-8 text-sm text-[#6B6155]">
+                <p className="mb-5 text-sm text-[#6B6155]">
                   Introduce tu PIN para identificarte
                 </p>
 
-                <div className="mb-8 flex justify-center gap-4">
+                <div className="mb-5 flex justify-center gap-4">
                   {[0, 1, 2, 3].map((i) => (
                     <div
                       key={i}
@@ -160,13 +160,13 @@ export default function VacacionesPage({ params }) {
                   </div>
                 )}
 
-                <div className="mx-auto grid max-w-[260px] grid-cols-3 gap-3">
+                <div className="mx-auto grid max-w-[195px] grid-cols-3 gap-2.5">
                   {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
                     <button
                       key={d}
                       onClick={() => handleDigit(d)}
                       disabled={identificando}
-                      className="flex h-[72px] w-[72px] items-center justify-center rounded-full border border-[#EDE6D6] bg-[#FDFBF7] text-2xl font-medium text-[#1F2420] shadow-sm transition-all hover:border-[#2F4538]/30 hover:bg-white active:scale-95 disabled:opacity-40"
+                      className="flex h-[50px] w-[50px] items-center justify-center rounded-full border border-[#EDE6D6] bg-[#FDFBF7] text-lg font-medium text-[#1F2420] shadow-sm transition-all hover:border-[#2F4538]/30 hover:bg-white active:scale-95 disabled:opacity-40"
                     >
                       {d}
                     </button>
@@ -175,14 +175,14 @@ export default function VacacionesPage({ params }) {
                   <button
                     onClick={() => handleDigit("0")}
                     disabled={identificando}
-                    className="flex h-[72px] w-[72px] items-center justify-center rounded-full border border-[#EDE6D6] bg-[#FDFBF7] text-2xl font-medium text-[#1F2420] shadow-sm transition-all hover:border-[#2F4538]/30 hover:bg-white active:scale-95 disabled:opacity-40"
+                    className="flex h-[50px] w-[50px] items-center justify-center rounded-full border border-[#EDE6D6] bg-[#FDFBF7] text-lg font-medium text-[#1F2420] shadow-sm transition-all hover:border-[#2F4538]/30 hover:bg-white active:scale-95 disabled:opacity-40"
                   >
                     0
                   </button>
                   <button
                     onClick={handleBorrar}
                     disabled={identificando || pin.length === 0}
-                    className="flex h-[72px] w-[72px] items-center justify-center rounded-full text-base font-medium text-[#9A8F7D] transition-all hover:text-[#1F2420] active:scale-95 disabled:opacity-30"
+                    className="flex h-[50px] w-[50px] items-center justify-center rounded-full text-base font-medium text-[#9A8F7D] transition-all hover:text-[#1F2420] active:scale-95 disabled:opacity-30"
                   >
                     ⌫
                   </button>

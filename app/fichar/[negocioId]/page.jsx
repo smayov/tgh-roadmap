@@ -2,6 +2,8 @@
 
 import { useState, useCallback, use, useEffect } from "react";
 
+const DURACION_MENSAJE_MS = 6000;
+
 export default function FicharPage({ params }) {
   const { negocioId } = use(params);
 
@@ -9,17 +11,25 @@ export default function FicharPage({ params }) {
   const [enviando, setEnviando] = useState(false);
   const [resultado, setResultado] = useState({ estado: "idle" });
   const [horaActual, setHoraActual] = useState(new Date());
+  const [progreso, setProgreso] = useState(100);
 
   useEffect(() => {
     const intervalo = setInterval(() => setHoraActual(new Date()), 1000);
     return () => clearInterval(intervalo);
   }, []);
 
+  useEffect(() => {
+    if (resultado.estado === "idle") return;
+    setProgreso(100);
+    const raf = requestAnimationFrame(() => setProgreso(0));
+    return () => cancelAnimationFrame(raf);
+  }, [resultado]);
+
   const resetTrasResultado = useCallback(() => {
     setTimeout(() => {
       setPin("");
       setResultado({ estado: "idle" });
-    }, 4500);
+    }, DURACION_MENSAJE_MS);
   }, []);
 
   function obtenerUbicacion() {
@@ -67,9 +77,7 @@ export default function FicharPage({ params }) {
 
   function handleDigit(d) {
     if (enviando || pin.length >= 4) return;
-    const nuevoPin = pin + d;
-    setPin(nuevoPin);
-    if (nuevoPin.length === 4) enviarPin(nuevoPin);
+    setPin((p) => p + d);
   }
 
   function handleBorrar() {
@@ -195,6 +203,18 @@ export default function FicharPage({ params }) {
                 ) : (
                   <p className="text-sm font-medium text-[#9A3B24]">{resultado.mensaje}</p>
                 )}
+
+                {/* Barra de progreso: cuenta atrás visual antes de volver al teclado */}
+                <div className="mx-auto mt-6 h-1 w-full max-w-[180px] overflow-hidden rounded-full bg-[#EDE6D6]">
+                  <div
+                    className="h-full rounded-full bg-[#2F4538] ease-linear"
+                    style={{
+                      width: `${progreso}%`,
+                      transitionProperty: "width",
+                      transitionDuration: `${DURACION_MENSAJE_MS}ms`,
+                    }}
+                  />
+                </div>
               </div>
             ) : (
               <div className="mx-auto grid max-w-[225px] grid-cols-3 gap-2.5">
@@ -224,6 +244,15 @@ export default function FicharPage({ params }) {
                   ⌫
                 </button>
               </div>
+            )}
+            {!mostrandoResultado && (
+              <button
+                onClick={() => enviarPin(pin)}
+                disabled={pin.length !== 4 || enviando}
+                className="mx-auto mt-5 block w-full max-w-[225px] rounded-full bg-[#2F4538] py-3 text-sm font-semibold uppercase tracking-wide text-white transition-all hover:bg-[#25392D] disabled:cursor-not-allowed disabled:bg-[#D8CFBC] disabled:text-[#9A8F7D]"
+              >
+                {enviando ? "Registrando…" : "Registrar fichaje"}
+              </button>
             )}
             </div>
           </div>

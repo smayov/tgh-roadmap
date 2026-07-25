@@ -12,6 +12,10 @@ export default function FicharPage({ params }) {
   const [resultado, setResultado] = useState({ estado: "idle" });
   const [horaActual, setHoraActual] = useState(new Date());
   const [progreso, setProgreso] = useState(100);
+  // Recuerda el último fichaje hecho en ESTE dispositivo, para mostrar el turno en curso
+  // en la pantalla de espera. Es solo del navegador (no persiste al recargar), útil sobre
+  // todo para el caso de "movilidad" donde el dispositivo es personal del empleado.
+  const [turnoEnCurso, setTurnoEnCurso] = useState(null); // { nombre, horaEntrada, horaSalida }
 
   useEffect(() => {
     const intervalo = setInterval(() => setHoraActual(new Date()), 1000);
@@ -57,15 +61,26 @@ export default function FicharPage({ params }) {
       if (!res.ok) {
         setResultado({ estado: "error", mensaje: data.message || "Error al fichar" });
       } else {
+        const horaFormateada = new Date(data.hora).toLocaleTimeString("es-ES", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
         setResultado({
           estado: "exito",
           nombre: data.nombre,
           tipo: data.tipo,
-          hora: new Date(data.hora).toLocaleTimeString("es-ES", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
+          hora: horaFormateada,
         });
+
+        if (data.tipo === "entrada") {
+          setTurnoEnCurso({ nombre: data.nombre, horaEntrada: horaFormateada, horaSalida: null });
+        } else {
+          setTurnoEnCurso((actual) => ({
+            nombre: data.nombre,
+            horaEntrada: actual?.nombre === data.nombre ? actual.horaEntrada : null,
+            horaSalida: horaFormateada,
+          }));
+        }
       }
     } catch {
       setResultado({ estado: "error", mensaje: "Error de conexión" });
@@ -129,6 +144,36 @@ export default function FicharPage({ params }) {
 
             <div className="p-5">
               <div className="mb-3 text-center">
+                <svg
+                  className="mx-auto mb-2 h-12 w-12"
+                  viewBox="0 0 64 64"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  {/* Cuerpo del reloj de fichar */}
+                  <rect x="10" y="6" width="34" height="34" rx="3" stroke="#2F4538" strokeWidth="2" fill="#FDFBF7" />
+                  {/* Esfera */}
+                  <circle cx="27" cy="23" r="11" stroke="#2F4538" strokeWidth="2" fill="white" />
+                  <line x1="27" y1="23" x2="27" y2="16" stroke="#2F4538" strokeWidth="1.6" strokeLinecap="round" />
+                  <line x1="27" y1="23" x2="32" y2="26" stroke="#2F4538" strokeWidth="1.6" strokeLinecap="round" />
+                  <circle cx="27" cy="23" r="1.4" fill="#2F4538" />
+                  {/* Ranura para la tarjeta */}
+                  <rect x="16" y="34" width="22" height="3" rx="1" fill="#B8933F" />
+                  {/* Tarjeta asomando */}
+                  <rect
+                    x="30"
+                    y="30.5"
+                    width="20"
+                    height="27"
+                    rx="1.5"
+                    fill="white"
+                    stroke="#B8933F"
+                    strokeWidth="1.6"
+                  />
+                  <line x1="34" y1="38" x2="46" y2="38" stroke="#D8CFBC" strokeWidth="1.4" strokeLinecap="round" />
+                  <line x1="34" y1="43" x2="46" y2="43" stroke="#D8CFBC" strokeWidth="1.4" strokeLinecap="round" />
+                  <line x1="34" y1="48" x2="42" y2="48" stroke="#D8CFBC" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
                 <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#B8933F]">
                   Tu Gestor Hostelero
                 </p>
@@ -161,6 +206,22 @@ export default function FicharPage({ params }) {
                 />
               ))}
             </div>
+
+            {!mostrandoResultado && turnoEnCurso && (
+              <div className="mb-4 rounded-xl bg-[#F6F2E9] px-4 py-3">
+                <div className="mb-1.5 flex items-center justify-between text-xs text-[#6B6155]">
+                  <span>Entrada · {turnoEnCurso.horaEntrada ?? "—"}</span>
+                  <span>{turnoEnCurso.horaSalida ? `Salida · ${turnoEnCurso.horaSalida}` : "En curso"}</span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#E8DFCE]">
+                  <div
+                    className={`h-full rounded-full bg-[#2F4538] transition-all duration-700 ${
+                      turnoEnCurso.horaSalida ? "w-full" : "w-1/2 animate-pulse"
+                    }`}
+                  />
+                </div>
+              </div>
+            )}
 
             {mostrandoResultado ? (
               <div className="text-center">
@@ -249,7 +310,7 @@ export default function FicharPage({ params }) {
               <button
                 onClick={() => enviarPin(pin)}
                 disabled={pin.length !== 4 || enviando}
-                className="mx-auto mt-3 block w-full max-w-[210px] rounded-full bg-[#2F4538] py-2.5 text-sm font-semibold uppercase tracking-wide text-white transition-all hover:bg-[#25392D] disabled:cursor-not-allowed disabled:bg-[#D8CFBC] disabled:text-[#9A8F7D]"
+                className="mx-auto mt-3 block w-full max-w-[210px] rounded-xl bg-gradient-to-r from-[#2F4538] to-[#3D5748] py-3 text-sm font-medium tracking-wide text-white shadow-[0_4px_14px_rgba(47,69,56,0.35)] transition-all hover:shadow-[0_6px_18px_rgba(47,69,56,0.45)] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-gradient-to-r disabled:from-[#E3DAC7] disabled:to-[#E3DAC7] disabled:text-[#B0A48D] disabled:shadow-none"
               >
                 {enviando ? "Registrando…" : "Registrar fichaje"}
               </button>

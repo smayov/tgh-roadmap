@@ -80,36 +80,66 @@ export default function FicharPage({ params }) {
   const mostrandoResultado = resultado.estado !== "idle";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#FAF6EF] px-6 py-12">
+    <div className="flex min-h-screen items-center justify-center bg-[#EDE6D8] px-6 py-12">
       <div className="w-full max-w-md">
-        <div className="mb-6 text-center">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#B8933F]">
-            Tu Gestor Hostelero
-          </p>
-        </div>
-
-        <div className="overflow-hidden rounded-2xl border border-[#E8DFCE] bg-white shadow-[0_8px_30px_rgba(47,69,56,0.08)]">
-          <div className="h-1.5 bg-gradient-to-r from-[#2F4538] to-[#B8933F]" />
-
-          <div className="p-8">
-            <div className="mb-6 text-center">
-              <h1
-                className="text-3xl font-medium text-[#1F2420]"
-                style={{ fontFamily: "'Iowan Old Style', 'Georgia', serif" }}
-              >
-                Fichar
-              </h1>
-              {/* Reloj en vivo — el guiño propio de esta pantalla */}
-              <p className="mt-1 font-mono text-sm tabular-nums tracking-wider text-[#9A8F7D]">
-                {horaActual.toLocaleTimeString("es-ES")}
-                {" · "}
-                {horaActual.toLocaleDateString("es-ES", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                })}
-              </p>
+        {/* Carcasa del terminal */}
+        <div
+          className="relative rounded-[28px] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.35)]"
+          style={{
+            background: "linear-gradient(155deg, #4A4A48 0%, #2E2E2C 55%, #232321 100%)",
+          }}
+        >
+          {/* Tornillos de las 4 esquinas */}
+          {[
+            "top-3 left-3",
+            "top-3 right-3",
+            "bottom-3 left-3",
+            "bottom-3 right-3",
+          ].map((pos) => (
+            <div
+              key={pos}
+              className={`absolute ${pos} h-3.5 w-3.5 rounded-full shadow-inner`}
+              style={{
+                background: "radial-gradient(circle at 35% 35%, #D9C89A, #8A7748 70%, #5C4E2E)",
+              }}
+            >
+              <div className="absolute left-1/2 top-1/2 h-[1.5px] w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-[#3A3220]" />
             </div>
+          ))}
+
+          {/* LED de estado */}
+          <div className="mb-3 flex items-center justify-center gap-1.5">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#7FBF7F] shadow-[0_0_6px_2px_rgba(127,191,127,0.6)]" />
+            <span className="text-[9px] font-medium uppercase tracking-[0.15em] text-[#9A9A96]">
+              en línea
+            </span>
+          </div>
+
+          {/* Pantalla embutida */}
+          <div className="overflow-hidden rounded-2xl border border-[#E8DFCE] bg-white shadow-[inset_0_2px_8px_rgba(0,0,0,0.15)]">
+            <div className="h-1.5 bg-gradient-to-r from-[#2F4538] to-[#B8933F]" />
+
+            <div className="p-8">
+              <div className="mb-6 text-center">
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#B8933F]">
+                  Tu Gestor Hostelero
+                </p>
+                <h1
+                  className="text-3xl font-medium text-[#1F2420]"
+                  style={{ fontFamily: "'Iowan Old Style', 'Georgia', serif" }}
+                >
+                  Fichar
+                </h1>
+                <p className="mt-1 font-mono text-sm tabular-nums tracking-wider text-[#9A8F7D]">
+                  {horaActual.toLocaleTimeString("es-ES")}
+                  {" · "}
+                  {horaActual.toLocaleDateString("es-ES", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  })}
+                </p>
+              </div>
 
             <div className="mb-8 flex justify-center gap-4">
               {[0, 1, 2, 3].map((i) => (
@@ -195,6 +225,7 @@ export default function FicharPage({ params }) {
                 </button>
               </div>
             )}
+            </div>
           </div>
         </div>
       </div>

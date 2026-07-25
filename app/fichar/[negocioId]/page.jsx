@@ -73,11 +73,17 @@ export default function FicharPage({ params }) {
         });
 
         if (data.tipo === "entrada") {
-          setTurnoEnCurso({ nombre: data.nombre, horaEntrada: horaFormateada, horaSalida: null });
+          setTurnoEnCurso({
+            nombre: data.nombre,
+            horaEntrada: horaFormateada,
+            horaEntradaISO: data.hora,
+            horaSalida: null,
+          });
         } else {
           setTurnoEnCurso((actual) => ({
             nombre: data.nombre,
             horaEntrada: actual?.nombre === data.nombre ? actual.horaEntrada : null,
+            horaEntradaISO: actual?.nombre === data.nombre ? actual.horaEntradaISO : null,
             horaSalida: horaFormateada,
           }));
         }
@@ -98,6 +104,15 @@ export default function FicharPage({ params }) {
   function handleBorrar() {
     if (enviando) return;
     setPin((p) => p.slice(0, -1));
+  }
+
+  function tiempoTranscurrido(desdeISO) {
+    if (!desdeISO) return "";
+    const minutos = Math.max(0, Math.floor((horaActual - new Date(desdeISO)) / 60000));
+    if (minutos < 60) return `${minutos} min`;
+    const horas = Math.floor(minutos / 60);
+    const resto = minutos % 60;
+    return resto === 0 ? `${horas} h` : `${horas} h ${resto} min`;
   }
 
   const mostrandoResultado = resultado.estado !== "idle";
@@ -211,15 +226,29 @@ export default function FicharPage({ params }) {
               <div className="mb-4 rounded-xl bg-[#F6F2E9] px-4 py-3">
                 <div className="mb-1.5 flex items-center justify-between text-xs text-[#6B6155]">
                   <span>Entrada · {turnoEnCurso.horaEntrada ?? "—"}</span>
-                  <span>{turnoEnCurso.horaSalida ? `Salida · ${turnoEnCurso.horaSalida}` : "En curso"}</span>
+                  <span>
+                    {turnoEnCurso.horaSalida
+                      ? `Salida · ${turnoEnCurso.horaSalida}`
+                      : `En curso · ${tiempoTranscurrido(turnoEnCurso.horaEntradaISO)}`}
+                  </span>
                 </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#E8DFCE]">
-                  <div
-                    className={`h-full rounded-full bg-[#4CAF6D] transition-all duration-700 ${
-                      turnoEnCurso.horaSalida ? "w-full" : "w-1/2 animate-pulse"
-                    }`}
-                  />
+                <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-[#E8DFCE]">
+                  {turnoEnCurso.horaSalida ? (
+                    <div className="h-full w-full rounded-full bg-[#4CAF6D]" />
+                  ) : (
+                    <div
+                      className="absolute inset-y-0 w-1/3 rounded-full bg-[#4CAF6D]"
+                      style={{ animation: "barraTurnoEnCurso 1.6s ease-in-out infinite" }}
+                    />
+                  )}
                 </div>
+                <style>{`
+                  @keyframes barraTurnoEnCurso {
+                    0% { left: -33%; }
+                    50% { left: 66%; }
+                    100% { left: -33%; }
+                  }
+                `}</style>
               </div>
             )}
 

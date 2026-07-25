@@ -16,6 +16,14 @@ export default function FicharPage({ params }) {
   // en la pantalla de espera. Es solo del navegador (no persiste al recargar), útil sobre
   // todo para el caso de "movilidad" donde el dispositivo es personal del empleado.
   const [turnoEnCurso, setTurnoEnCurso] = useState(null); // { nombre, horaEntrada, horaSalida }
+  const [anchoBarraTurno, setAnchoBarraTurno] = useState(0);
+
+  useEffect(() => {
+    if (!turnoEnCurso || turnoEnCurso.horaSalida) return;
+    setAnchoBarraTurno(6);
+    const raf = requestAnimationFrame(() => setAnchoBarraTurno(90));
+    return () => cancelAnimationFrame(raf);
+  }, [turnoEnCurso?.horaEntradaISO]);
 
   useEffect(() => {
     const intervalo = setInterval(() => setHoraActual(new Date()), 1000);
@@ -232,23 +240,16 @@ export default function FicharPage({ params }) {
                       : `En curso · ${tiempoTranscurrido(turnoEnCurso.horaEntradaISO)}`}
                   </span>
                 </div>
-                <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-[#E8DFCE]">
-                  {turnoEnCurso.horaSalida ? (
-                    <div className="h-full w-full rounded-full bg-[#4CAF6D]" />
-                  ) : (
-                    <div
-                      className="absolute inset-y-0 w-1/3 rounded-full bg-[#4CAF6D]"
-                      style={{ animation: "barraTurnoEnCurso 1.6s ease-in-out infinite" }}
-                    />
-                  )}
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#E8DFCE]">
+                  <div
+                    className="h-full rounded-full bg-[#4CAF6D] ease-linear"
+                    style={{
+                      width: turnoEnCurso.horaSalida ? "100%" : `${anchoBarraTurno}%`,
+                      transitionProperty: "width",
+                      transitionDuration: turnoEnCurso.horaSalida ? "500ms" : "40000ms",
+                    }}
+                  />
                 </div>
-                <style>{`
-                  @keyframes barraTurnoEnCurso {
-                    0% { left: -33%; }
-                    50% { left: 66%; }
-                    100% { left: -33%; }
-                  }
-                `}</style>
               </div>
             )}
 

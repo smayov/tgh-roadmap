@@ -215,7 +215,7 @@ export default function FicharPage({ params }) {
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#E8DFCE]">
                   <div
-                    className={`h-full rounded-full bg-[#2F4538] transition-all duration-700 ${
+                    className={`h-full rounded-full bg-[#4CAF6D] transition-all duration-700 ${
                       turnoEnCurso.horaSalida ? "w-full" : "w-1/2 animate-pulse"
                     }`}
                   />

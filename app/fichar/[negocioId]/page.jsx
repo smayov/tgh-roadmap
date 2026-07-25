@@ -21,8 +21,13 @@ export default function FicharPage({ params }) {
   useEffect(() => {
     if (!turnoEnCurso || turnoEnCurso.horaSalida) return;
     setAnchoBarraTurno(6);
-    const raf = requestAnimationFrame(() => setAnchoBarraTurno(90));
-    return () => cancelAnimationFrame(raf);
+    // Doble rAF: el primero deja que el navegador "pinte" el 6% real;
+    // solo entonces lanzamos el cambio a 90%, o si no, salta directo sin animar.
+    const raf1 = requestAnimationFrame(() => {
+      const raf2 = requestAnimationFrame(() => setAnchoBarraTurno(90));
+      return () => cancelAnimationFrame(raf2);
+    });
+    return () => cancelAnimationFrame(raf1);
   }, [turnoEnCurso?.horaEntradaISO]);
 
   useEffect(() => {

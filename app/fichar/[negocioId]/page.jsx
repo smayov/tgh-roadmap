@@ -33,7 +33,7 @@ export default function FicharPage({ params }) {
     try {
       const ubicacion = await obtenerUbicacion();
 
-      const res = await fetch("/api/fichar", {
+      const res = await fetch("/api/personal/fichaje", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ negocio_id: negocioId, pin: pinCompleto, ubicacion }),

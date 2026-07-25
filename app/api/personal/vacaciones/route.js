@@ -13,17 +13,15 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-function calcularDiasLaborables(inicio, fin) {
+// Cuenta días naturales (todos los del rango, incluidos fines de semana) —
+// en España las vacaciones se cuentan así por defecto (30 días naturales/año,
+// no laborables). Si en el futuro se añade una configuración de "días de
+// libranza del negocio", aquí es donde habría que restarlos.
+function calcularDiasNaturales(inicio, fin) {
   const start = new Date(inicio);
   const end = new Date(fin);
-  let dias = 0;
-  const cursor = new Date(start);
-  while (cursor <= end) {
-    const diaSemana = cursor.getDay(); // 0 = domingo, 6 = sábado
-    if (diaSemana !== 0 && diaSemana !== 6) dias++;
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return dias;
+  const msPorDia = 1000 * 60 * 60 * 24;
+  return Math.round((end - start) / msPorDia) + 1;
 }
 
 export async function GET(req) {
@@ -58,11 +56,11 @@ export async function GET(req) {
 
     const diasAprobados = (solicitudes ?? [])
       .filter((v) => v.estado === "aprobada")
-      .reduce((acc, v) => acc + calcularDiasLaborables(v.fecha_inicio, v.fecha_fin), 0);
+      .reduce((acc, v) => acc + calcularDiasNaturales(v.fecha_inicio, v.fecha_fin), 0);
 
     const diasPendientes = (solicitudes ?? [])
       .filter((v) => v.estado === "pendiente")
-      .reduce((acc, v) => acc + calcularDiasLaborables(v.fecha_inicio, v.fecha_fin), 0);
+      .reduce((acc, v) => acc + calcularDiasNaturales(v.fecha_inicio, v.fecha_fin), 0);
 
     return NextResponse.json({
       diasAnuales: empleado.dias_vacaciones_anuales,
@@ -91,7 +89,7 @@ export async function POST(req) {
       );
     }
 
-    const diasSolicitados = calcularDiasLaborables(fecha_inicio, fecha_fin);
+    const diasSolicitados = calcularDiasNaturales(fecha_inicio, fecha_fin);
 
     // 1. Saldo anual del empleado
     const { data: empleado, error: errorEmpleado } = await supabaseAdmin
@@ -121,7 +119,7 @@ export async function POST(req) {
       .lte("fecha_inicio", `${anio}-12-31`);
 
     const diasYaComprometidos = (solicitudesExistentes ?? []).reduce(
-      (acc, v) => acc + calcularDiasLaborables(v.fecha_inicio, v.fecha_fin),
+      (acc, v) => acc + calcularDiasNaturales(v.fecha_inicio, v.fecha_fin),
       0
     );
 

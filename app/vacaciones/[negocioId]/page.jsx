@@ -225,10 +225,15 @@ export default function VacacionesPage({ params }) {
                         }}
                       />
                     </div>
-                    {saldo.diasUsados > 0 && (
-                      <p className="mt-2 text-xs text-[#9A8F7D]">
-                        {saldo.diasUsados} días ya aprobados este año
-                      </p>
+                    {(saldo.diasAprobados > 0 || saldo.diasPendientes > 0) && (
+                      <div className="mt-3 space-y-1 text-xs text-[#9A8F7D]">
+                        {saldo.diasAprobados > 0 && (
+                          <p>✓ {saldo.diasAprobados} días aprobados</p>
+                        )}
+                        {saldo.diasPendientes > 0 && (
+                          <p>⏳ {saldo.diasPendientes} días pendientes de autorizar</p>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}

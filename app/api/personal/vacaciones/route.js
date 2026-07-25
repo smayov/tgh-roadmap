@@ -48,23 +48,27 @@ export async function GET(req) {
     }
 
     const anio = new Date().getFullYear();
-    const { data: aprobadas } = await supabaseAdmin
+    const { data: solicitudes } = await supabaseAdmin
       .from("vacaciones")
-      .select("fecha_inicio, fecha_fin")
+      .select("fecha_inicio, fecha_fin, estado")
       .eq("empleado_id", empleado_id)
-      .eq("estado", "aprobada")
+      .in("estado", ["aprobada", "pendiente"])
       .gte("fecha_inicio", `${anio}-01-01`)
       .lte("fecha_inicio", `${anio}-12-31`);
 
-    const diasUsados = (aprobadas ?? []).reduce(
-      (acc, v) => acc + calcularDiasLaborables(v.fecha_inicio, v.fecha_fin),
-      0
-    );
+    const diasAprobados = (solicitudes ?? [])
+      .filter((v) => v.estado === "aprobada")
+      .reduce((acc, v) => acc + calcularDiasLaborables(v.fecha_inicio, v.fecha_fin), 0);
+
+    const diasPendientes = (solicitudes ?? [])
+      .filter((v) => v.estado === "pendiente")
+      .reduce((acc, v) => acc + calcularDiasLaborables(v.fecha_inicio, v.fecha_fin), 0);
 
     return NextResponse.json({
       diasAnuales: empleado.dias_vacaciones_anuales,
-      diasUsados,
-      saldoDisponible: empleado.dias_vacaciones_anuales - diasUsados,
+      diasAprobados,
+      diasPendientes,
+      saldoDisponible: empleado.dias_vacaciones_anuales - diasAprobados - diasPendientes,
     });
   } catch (err) {
     console.error("Error consultando saldo de vacaciones:", err);
@@ -104,23 +108,24 @@ export async function POST(req) {
       );
     }
 
-    // 2. Días ya "gastados": suma de días laborables de todas las solicitudes APROBADAS
-    //    del mismo año que fecha_inicio (para no arrastrar vacaciones de años anteriores)
+    // 2. Días ya "comprometidos": aprobados + pendientes de autorizar, del mismo año
+    //    (los pendientes también reservan saldo, para no permitir pedir de más
+    //    mientras hay otra solicitud en revisión)
     const anio = new Date(fecha_inicio).getFullYear();
-    const { data: aprobadas } = await supabaseAdmin
+    const { data: solicitudesExistentes } = await supabaseAdmin
       .from("vacaciones")
       .select("fecha_inicio, fecha_fin")
       .eq("empleado_id", empleado_id)
-      .eq("estado", "aprobada")
+      .in("estado", ["aprobada", "pendiente"])
       .gte("fecha_inicio", `${anio}-01-01`)
       .lte("fecha_inicio", `${anio}-12-31`);
 
-    const diasYaAprobados = (aprobadas ?? []).reduce(
+    const diasYaComprometidos = (solicitudesExistentes ?? []).reduce(
       (acc, v) => acc + calcularDiasLaborables(v.fecha_inicio, v.fecha_fin),
       0
     );
 
-    const saldoDisponible = empleado.dias_vacaciones_anuales - diasYaAprobados;
+    const saldoDisponible = empleado.dias_vacaciones_anuales - diasYaComprometidos;
 
     if (diasSolicitados > saldoDisponible) {
       return NextResponse.json(

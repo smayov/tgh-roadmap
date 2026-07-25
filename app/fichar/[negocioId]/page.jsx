@@ -127,8 +127,8 @@ export default function FicharPage({ params }) {
           <div className="overflow-hidden rounded-2xl border border-[#E8DFCE] bg-white shadow-[inset_0_2px_8px_rgba(0,0,0,0.15)]">
             <div className="h-1.5 bg-gradient-to-r from-[#2F4538] to-[#B8933F]" />
 
-            <div className="p-6">
-              <div className="mb-4 text-center">
+            <div className="p-5">
+              <div className="mb-3 text-center">
                 <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#B8933F]">
                   Tu Gestor Hostelero
                 </p>
@@ -149,7 +149,7 @@ export default function FicharPage({ params }) {
                 </p>
               </div>
 
-            <div className="mb-5 flex justify-center gap-4">
+            <div className="mb-4 flex justify-center gap-4">
               {[0, 1, 2, 3].map((i) => (
                 <div
                   key={i}
@@ -217,13 +217,13 @@ export default function FicharPage({ params }) {
                 </div>
               </div>
             ) : (
-              <div className="mx-auto grid max-w-[225px] grid-cols-3 gap-2.5">
+              <div className="mx-auto grid max-w-[210px] grid-cols-3 gap-2">
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
                   <button
                     key={d}
                     onClick={() => handleDigit(d)}
                     disabled={enviando}
-                    className="flex h-[60px] w-[60px] items-center justify-center rounded-full border border-[#EDE6D6] bg-[#FDFBF7] text-2xl font-medium text-[#1F2420] shadow-sm transition-all hover:border-[#2F4538]/30 hover:bg-white active:scale-95 disabled:opacity-40"
+                    className="flex h-[54px] w-[54px] items-center justify-center rounded-full border border-[#EDE6D6] bg-[#FDFBF7] text-2xl font-medium text-[#1F2420] shadow-sm transition-all hover:border-[#2F4538]/30 hover:bg-white active:scale-95 disabled:opacity-40"
                   >
                     {d}
                   </button>
@@ -232,14 +232,14 @@ export default function FicharPage({ params }) {
                 <button
                   onClick={() => handleDigit("0")}
                   disabled={enviando}
-                  className="flex h-[60px] w-[60px] items-center justify-center rounded-full border border-[#EDE6D6] bg-[#FDFBF7] text-2xl font-medium text-[#1F2420] shadow-sm transition-all hover:border-[#2F4538]/30 hover:bg-white active:scale-95 disabled:opacity-40"
+                  className="flex h-[54px] w-[54px] items-center justify-center rounded-full border border-[#EDE6D6] bg-[#FDFBF7] text-2xl font-medium text-[#1F2420] shadow-sm transition-all hover:border-[#2F4538]/30 hover:bg-white active:scale-95 disabled:opacity-40"
                 >
                   0
                 </button>
                 <button
                   onClick={handleBorrar}
                   disabled={enviando || pin.length === 0}
-                  className="flex h-[60px] w-[60px] items-center justify-center rounded-full text-base font-medium text-[#9A8F7D] transition-all hover:text-[#1F2420] active:scale-95 disabled:opacity-30"
+                  className="flex h-[54px] w-[54px] items-center justify-center rounded-full text-base font-medium text-[#9A8F7D] transition-all hover:text-[#1F2420] active:scale-95 disabled:opacity-30"
                 >
                   ⌫
                 </button>
@@ -249,7 +249,7 @@ export default function FicharPage({ params }) {
               <button
                 onClick={() => enviarPin(pin)}
                 disabled={pin.length !== 4 || enviando}
-                className="mx-auto mt-5 block w-full max-w-[225px] rounded-full bg-[#2F4538] py-3 text-sm font-semibold uppercase tracking-wide text-white transition-all hover:bg-[#25392D] disabled:cursor-not-allowed disabled:bg-[#D8CFBC] disabled:text-[#9A8F7D]"
+                className="mx-auto mt-3 block w-full max-w-[210px] rounded-full bg-[#2F4538] py-2.5 text-sm font-semibold uppercase tracking-wide text-white transition-all hover:bg-[#25392D] disabled:cursor-not-allowed disabled:bg-[#D8CFBC] disabled:text-[#9A8F7D]"
               >
                 {enviando ? "Registrando…" : "Registrar fichaje"}
               </button>

@@ -87,6 +87,11 @@ export default function FicharPage({ params }) {
     }, DURACION_MENSAJE_MS);
   }, []);
 
+  function volverAlTeclado() {
+    setPin("");
+    setResultado({ estado: "idle" });
+  }
+
   function obtenerUbicacion() {
     return new Promise((resolve) => {
       if (!navigator.geolocation) return resolve(null);
@@ -100,6 +105,8 @@ export default function FicharPage({ params }) {
 
   async function enviarPin(pinCompleto) {
     setEnviando(true);
+    let huboExito = false;
+    let tipoFichajeRecibido = null;
     try {
       const ubicacion = await obtenerUbicacion();
       const res = await fetch("/api/personal/fichaje", {
@@ -112,6 +119,8 @@ export default function FicharPage({ params }) {
       if (!res.ok) {
         setResultado({ estado: "error", mensaje: data.message || "Error al fichar" });
       } else {
+        huboExito = true;
+        tipoFichajeRecibido = data.tipoFichaje;
         const horaFormateada = new Date(data.hora).toLocaleTimeString("es-ES", {
           hour: "2-digit",
           minute: "2-digit",
@@ -144,7 +153,18 @@ export default function FicharPage({ params }) {
       setResultado({ estado: "error", mensaje: "Error de conexión" });
     } finally {
       setEnviando(false);
-      resetTrasResultado();
+      // Si es un empleado de movilidad y le vamos a ofrecer instalar la app
+      // (Android con prompt disponible, o iOS con la guía manual), NO
+      // programamos el regreso automático: que decida él cuándo volver,
+      // en vez de que la cuenta atrás se lo lleve por delante.
+      const vaAMostrarInvitacion =
+        huboExito &&
+        tipoFichajeRecibido === "movilidad" &&
+        (promptInstalacion || esIOSSafari) &&
+        !instalada;
+      if (!vaAMostrarInvitacion) {
+        resetTrasResultado();
+      }
     }
   }
 
@@ -355,6 +375,12 @@ export default function FicharPage({ params }) {
                       >
                         Instalar
                       </button>
+                      <button
+                        onClick={volverAlTeclado}
+                        className="mt-2 w-full py-1 text-xs font-medium text-[#9A8F7D] transition hover:text-[#1F2420]"
+                      >
+                        Ahora no
+                      </button>
                     </div>
                   )}
 
@@ -376,20 +402,35 @@ export default function FicharPage({ params }) {
                         <li>2. Baja y toca <span className="font-semibold">"Añadir a pantalla de inicio"</span></li>
                         <li>3. Toca <span className="font-semibold">"Añadir"</span> arriba a la derecha</li>
                       </ol>
+                      <button
+                        onClick={volverAlTeclado}
+                        className="mt-3 w-full py-1 text-xs font-medium text-[#9A8F7D] transition hover:text-[#1F2420]"
+                      >
+                        Entendido, volver
+                      </button>
                     </div>
                   )}
 
-                {/* Barra de progreso: cuenta atrás visual antes de volver al teclado */}
-                <div className="mx-auto mt-6 h-1 w-full max-w-[180px] overflow-hidden rounded-full bg-[#EDE6D6]">
-                  <div
-                    className="h-full rounded-full bg-[#2F4538] ease-linear"
-                    style={{
-                      width: `${progreso}%`,
-                      transitionProperty: "width",
-                      transitionDuration: `${DURACION_MENSAJE_MS}ms`,
-                    }}
-                  />
-                </div>
+                {/* Barra de progreso: cuenta atrás visual antes de volver al teclado.
+                    No se muestra si hay una invitación de instalación esperando respuesta,
+                    porque en ese caso no hay regreso automático. */}
+                {!(
+                  resultado.estado === "exito" &&
+                  resultado.tipoFichaje === "movilidad" &&
+                  (promptInstalacion || esIOSSafari) &&
+                  !instalada
+                ) && (
+                  <div className="mx-auto mt-6 h-1 w-full max-w-[180px] overflow-hidden rounded-full bg-[#EDE6D6]">
+                    <div
+                      className="h-full rounded-full bg-[#2F4538] ease-linear"
+                      style={{
+                        width: `${progreso}%`,
+                        transitionProperty: "width",
+                        transitionDuration: `${DURACION_MENSAJE_MS}ms`,
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             ) : (
               <div className="mx-auto grid max-w-[180px] grid-cols-3 gap-2">

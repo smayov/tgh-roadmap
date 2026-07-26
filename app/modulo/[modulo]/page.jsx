@@ -2208,6 +2208,10 @@ function PanelEmpleados({ negocioId, info }) {
   const [mostrarAlta, setMostrarAlta] = useState(false);
   const [guardandoAlta, setGuardandoAlta] = useState(false);
 
+  // Si editandoId tiene valor, el formulario de abajo actúa como edición
+  // de ese empleado en vez de alta de uno nuevo.
+  const [editandoId, setEditandoId] = useState(null);
+
   const [nombre, setNombre] = useState('');
   const [dniNie, setDniNie] = useState('');
   const [telefono, setTelefono] = useState('');
@@ -2270,43 +2274,94 @@ function PanelEmpleados({ negocioId, info }) {
     }
   }
 
-  async function handleAltaEmpleado(e) {
+  function limpiarFormulario() {
+    setNombre(''); setDniNie(''); setTelefono(''); setTipoFichaje('fijo');
+    setDiasVacaciones('30'); setPin(''); setFotoArchivo(null);
+    setEditandoId(null);
+  }
+
+  function abrirAltaNueva() {
+    limpiarFormulario();
+    setMostrarAlta(true);
+  }
+
+  function abrirEdicion(emp) {
+    setNombre(emp.nombre || '');
+    setDniNie(emp.dni_nie || '');
+    setTelefono(emp.telefono || '');
+    setTipoFichaje(emp.tipo_fichaje || 'fijo');
+    setDiasVacaciones(String(emp.dias_vacaciones_anuales ?? 30));
+    setPin(''); // el PIN nunca se recupera (va cifrado); se deja en blanco = "no cambiar"
+    setFotoArchivo(null);
+    setEditandoId(emp.id);
+    setMostrarAlta(true);
+    // Llevamos la vista arriba, al formulario, para que se vea que se abrió
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function cancelarFormulario() {
+    limpiarFormulario();
+    setMostrarAlta(false);
+  }
+
+  async function handleGuardarEmpleado(e) {
     e.preventDefault();
-    if (!nombre.trim() || pin.length < 4) {
-      setError('El nombre es obligatorio y el PIN debe tener al menos 4 dígitos.');
+
+    const esEdicion = !!editandoId;
+
+    if (!nombre.trim() || (!esEdicion && pin.length < 4)) {
+      setError('El nombre es obligatorio' + (esEdicion ? '.' : ' y el PIN debe tener al menos 4 dígitos.'));
       return;
     }
+    // En edición, si se escribe un PIN nuevo, también debe tener al menos 4 dígitos
+    if (esEdicion && pin.length > 0 && pin.length < 4) {
+      setError('El nuevo PIN debe tener al menos 4 dígitos (o déjalo en blanco para no cambiarlo).');
+      return;
+    }
+
     setGuardandoAlta(true);
     setError(null);
 
-    const sal = generarSal();
-    const hash = await hashearPin(pin, sal);
-    const pinHashCompleto = `${sal}:${hash}`;
+    const datos = {
+      nombre: nombre.trim(),
+      dni_nie: dniNie.trim() || null,
+      telefono: telefono.trim() || null,
+      tipo_fichaje: tipoFichaje,
+      dias_vacaciones_anuales: Number(diasVacaciones) || 30,
+    };
 
-    const { data: nuevoEmpleado, error: errIns } = await supabase
-      .from('empleados')
-      .insert({
-        negocio_id: negocioId,
-        nombre: nombre.trim(),
-        dni_nie: dniNie.trim() || null,
-        telefono: telefono.trim() || null,
-        tipo_fichaje: tipoFichaje,
-        dias_vacaciones_anuales: Number(diasVacaciones) || 30,
-        pin_hash: pinHashCompleto,
-      })
-      .select()
-      .single();
+    // Solo recalculamos el PIN si se ha escrito uno nuevo (en alta, siempre; en edición, opcional)
+    if (!esEdicion || pin.length >= 4) {
+      const sal = generarSal();
+      const hash = await hashearPin(pin, sal);
+      datos.pin_hash = `${sal}:${hash}`;
+    }
 
-    if (errIns) { setGuardandoAlta(false); setError(errIns.message); return; }
+    let empleadoId = editandoId;
 
-    // Si se eligió una foto, se sube ahora que ya tenemos el id del empleado
-    if (fotoArchivo) {
-      await subirFotoEmpleado(nuevoEmpleado.id, fotoArchivo);
+    if (esEdicion) {
+      const { error: errUpd } = await supabase
+        .from('empleados')
+        .update(datos)
+        .eq('id', editandoId);
+      if (errUpd) { setGuardandoAlta(false); setError(errUpd.message); return; }
+    } else {
+      const { data: nuevoEmpleado, error: errIns } = await supabase
+        .from('empleados')
+        .insert({ negocio_id: negocioId, ...datos })
+        .select()
+        .single();
+      if (errIns) { setGuardandoAlta(false); setError(errIns.message); return; }
+      empleadoId = nuevoEmpleado.id;
+    }
+
+    // Si se eligió una foto nueva, se sube (tanto en alta como en edición)
+    if (fotoArchivo && empleadoId) {
+      await subirFotoEmpleado(empleadoId, fotoArchivo);
     }
 
     setGuardandoAlta(false);
-    setNombre(''); setDniNie(''); setTelefono(''); setTipoFichaje('fijo'); setDiasVacaciones('30'); setPin(''); setFotoArchivo(null);
-    setMostrarAlta(false);
+    cancelarFormulario();
     await cargarEmpleados();
   }
 
@@ -2328,14 +2383,19 @@ function PanelEmpleados({ negocioId, info }) {
 
       <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}>
         <button
-          onClick={() => setMostrarAlta((v) => !v)}
+          onClick={() => (mostrarAlta ? cancelarFormulario() : abrirAltaNueva())}
           style={{ ...btnLima, width: 'auto', padding: '10px 20px', marginBottom: 16 }}
         >
           {mostrarAlta ? 'Cancelar' : '+ Añadir empleado'}
         </button>
 
         {mostrarAlta && (
-          <form onSubmit={handleAltaEmpleado} style={altaBox}>
+          <form onSubmit={handleGuardarEmpleado} style={altaBox}>
+            {editandoId && (
+              <div style={{ ...costoHint, color: '#BCE05A', fontWeight: 600 }}>
+                ✏️ Editando a {empleados.find((e) => e.id === editandoId)?.nombre}
+              </div>
+            )}
             <div>
               <label style={campoLabel}>Nombre completo</label>
               <input value={nombre} onChange={(e) => setNombre(e.target.value)} style={{ ...input, width: '100%' }} required />
@@ -2364,17 +2424,23 @@ function PanelEmpleados({ negocioId, info }) {
               </div>
             </div>
             <div>
-              <label style={campoLabel}>PIN de fichaje (4-6 dígitos)</label>
+              <label style={campoLabel}>
+                {editandoId ? 'Nuevo PIN de fichaje (opcional)' : 'PIN de fichaje (4-6 dígitos)'}
+              </label>
               <input
                 type="password" inputMode="numeric" maxLength={6}
                 value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
                 style={{ ...input, width: 120 }}
-                placeholder="1234"
+                placeholder={editandoId ? '••••' : '1234'}
               />
-              <p style={costoHint}>El empleado usará este PIN para fichar. Se guarda cifrado, nunca en texto plano.</p>
+              <p style={costoHint}>
+                {editandoId
+                  ? 'Déjalo en blanco para mantener el PIN actual. Si escribes uno nuevo, sustituye al anterior.'
+                  : 'El empleado usará este PIN para fichar. Se guarda cifrado, nunca en texto plano.'}
+              </p>
             </div>
             <div>
-              <label style={campoLabel}>Foto (opcional)</label>
+              <label style={campoLabel}>Foto {editandoId ? '(déjalo vacío para no cambiarla)' : '(opcional)'}</label>
               <input
                 type="file"
                 accept="image/*"
@@ -2384,7 +2450,7 @@ function PanelEmpleados({ negocioId, info }) {
               <p style={costoHint}>Solo para identificarlo visualmente en el panel. Se guarda de forma privada, nadie fuera del negocio puede verla.</p>
             </div>
             <button type="submit" disabled={guardandoAlta} style={btnLima}>
-              {guardandoAlta ? 'Guardando…' : 'Guardar empleado'}
+              {guardandoAlta ? 'Guardando…' : editandoId ? 'Guardar cambios' : 'Guardar empleado'}
             </button>
           </form>
         )}
@@ -2393,8 +2459,11 @@ function PanelEmpleados({ negocioId, info }) {
         {!cargando && empleados.length === 0 && <p style={{ color: '#B7C7BE' }}>Aún no has dado de alta ningún empleado.</p>}
 
         {!cargando && empleados.map((emp) => (
-          <div key={emp.id} style={{ ...productoRow, position: 'relative' }}>
-            <button onClick={() => handleBaja(emp)} style={btnEliminar} title="Dar de baja">🗑️</button>
+          <div key={emp.id} style={{ ...productoRow, position: 'relative', paddingRight: 76 }}>
+            <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 6 }}>
+              <button onClick={() => abrirEdicion(emp)} style={btnEditar} title="Editar perfil">✏️</button>
+              <button onClick={() => handleBaja(emp)} style={{ ...btnEliminar, position: 'static' }} title="Dar de baja">🗑️</button>
+            </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={fotoWrap}>
@@ -2526,6 +2595,11 @@ const btnEliminar = {
   position: 'absolute', top: 10, right: 10, width: 26, height: 26, borderRadius: 8,
   border: 'none', background: 'rgba(224,114,90,.15)', color: '#E0725A', fontSize: 13,
   cursor: 'pointer', display: 'grid', placeItems: 'center', opacity: 0.8,
+};
+const btnEditar = {
+  width: 26, height: 26, borderRadius: 8,
+  border: 'none', background: 'rgba(127,201,164,.15)', color: '#7FC9A4', fontSize: 12,
+  cursor: 'pointer', display: 'grid', placeItems: 'center', opacity: 0.9,
 };
 const btnRound = {
   minWidth: 40, height: 32, padding: '0 10px', borderRadius: 16, border: 'none',

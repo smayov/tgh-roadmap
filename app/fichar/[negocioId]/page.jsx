@@ -16,6 +16,50 @@ export default function FicharPage({ params }) {
   // en la pantalla de espera. Es solo del navegador (no persiste al recargar), útil sobre
   // todo para el caso de "movilidad" donde el dispositivo es personal del empleado.
   const [turnoEnCurso, setTurnoEnCurso] = useState(null); // { nombre, horaEntrada, horaSalida }
+
+  // --- PWA: capturamos el evento de instalación del navegador para dispararlo nosotros,
+  // en vez de dejar que Chrome/Android lo muestre solo cuando le parezca.
+  const [promptInstalacion, setPromptInstalacion] = useState(null);
+  const [instalada, setInstalada] = useState(false);
+  const [esIOSSafari, setEsIOSSafari] = useState(false);
+
+  useEffect(() => {
+    const ua = window.navigator.userAgent;
+    const esIOS = /iPad|iPhone|iPod/.test(ua);
+    const esSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua); // excluye Chrome/Firefox/Edge en iOS
+    setEsIOSSafari(esIOS && esSafari);
+  }, []);
+
+  useEffect(() => {
+    function alCapturarPrompt(e) {
+      e.preventDefault();
+      setPromptInstalacion(e);
+    }
+    window.addEventListener("beforeinstallprompt", alCapturarPrompt);
+
+    function alInstalar() {
+      setInstalada(true);
+      setPromptInstalacion(null);
+    }
+    window.addEventListener("appinstalled", alInstalar);
+
+    // Si ya está instalada (abierta como app), no tiene sentido ofrecer instalar de nuevo
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setInstalada(true);
+    }
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", alCapturarPrompt);
+      window.removeEventListener("appinstalled", alInstalar);
+    };
+  }, []);
+
+  async function instalarApp() {
+    if (!promptInstalacion) return;
+    promptInstalacion.prompt();
+    await promptInstalacion.userChoice;
+    setPromptInstalacion(null);
+  }
   function anchoBarraSegunTiempo(desdeISO) {
     if (!desdeISO) return 6;
     const minutos = Math.max(0, (horaActual - new Date(desdeISO)) / 60000);
@@ -77,6 +121,7 @@ export default function FicharPage({ params }) {
           nombre: data.nombre,
           tipo: data.tipo,
           hora: horaFormateada,
+          tipoFichaje: data.tipoFichaje,
         });
 
         if (data.tipo === "entrada") {
@@ -293,6 +338,46 @@ export default function FicharPage({ params }) {
                 ) : (
                   <p className="text-sm font-medium text-[#9A3B24]">{resultado.mensaje}</p>
                 )}
+
+                {/* Invitación a instalar como app: solo tras un fichaje correcto de un empleado
+                    de tipo movilidad, y solo si el navegador nos ha ofrecido el evento de instalación */}
+                {resultado.estado === "exito" &&
+                  resultado.tipoFichaje === "movilidad" &&
+                  promptInstalacion &&
+                  !instalada && (
+                    <div className="mt-4 rounded-xl border border-[#E8DFCE] bg-[#F6F2E9] px-4 py-3">
+                      <p className="mb-2 text-xs text-[#6B6155]">
+                        ¿Fichas siempre desde el móvil? Instálatelo como app en 1 toque.
+                      </p>
+                      <button
+                        onClick={instalarApp}
+                        className="w-full rounded-lg bg-[#2F4538] py-2 text-xs font-medium text-white transition hover:bg-[#25392D]"
+                      >
+                        Instalar
+                      </button>
+                    </div>
+                  )}
+
+                {/* iOS/Safari no permite disparar la instalación por código: mostramos
+                    los pasos manuales en su lugar, con los mismos iconos que ve en pantalla */}
+                {resultado.estado === "exito" &&
+                  resultado.tipoFichaje === "movilidad" &&
+                  esIOSSafari &&
+                  !instalada && (
+                    <div className="mt-4 rounded-xl border border-[#E8DFCE] bg-[#F6F2E9] px-4 py-3 text-left">
+                      <p className="mb-2 text-xs font-medium text-[#1F2420]">
+                        📲 Instálatelo en tu iPhone en 3 pasos:
+                      </p>
+                      <ol className="space-y-1 text-xs text-[#6B6155]">
+                        <li>
+                          1. Toca el icono <span className="font-semibold">Compartir</span>{" "}
+                          <span aria-hidden>􀈂</span> abajo en Safari
+                        </li>
+                        <li>2. Baja y toca <span className="font-semibold">"Añadir a pantalla de inicio"</span></li>
+                        <li>3. Toca <span className="font-semibold">"Añadir"</span> arriba a la derecha</li>
+                      </ol>
+                    </div>
+                  )}
 
                 {/* Barra de progreso: cuenta atrás visual antes de volver al teclado */}
                 <div className="mx-auto mt-6 h-1 w-full max-w-[180px] overflow-hidden rounded-full bg-[#EDE6D6]">

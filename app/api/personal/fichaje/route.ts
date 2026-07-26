@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
       nombre: resultado.nombre,
       tipo: resultado.tipo,
       hora: resultado.hora,
+      tipoFichaje: resultado.tipoFichaje,
     });
   } catch (err) {
     console.error("Error en /api/personal/fichaje:", err);

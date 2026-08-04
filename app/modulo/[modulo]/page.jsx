@@ -11,6 +11,8 @@ import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { supabase } from '../../supabaseClient';
+import { geocodificarDireccion } from '../../../lib/geocodificar';
+import { obtenerClimaNegocio } from '../../../lib/clima';
 
 /* ============================================================
    PÁGINA DE MÓDULO
@@ -84,7 +86,7 @@ const INFO = {
   },
 };
 
-const MODULOS_FUNCIONALES = ['stock', 'empleados'];
+const MODULOS_FUNCIONALES = ['stock', 'empleados', 'alertas'];
 
 export default function ModuloPage() {
   const router = useRouter();
@@ -165,6 +167,9 @@ export default function ModuloPage() {
           )}
           {moduloId === 'empleados' && (
             <PanelEmpleados negocioId={negocioId} info={info} />
+          )}
+          {moduloId === 'alertas' && (
+            <PanelAlertasClima negocioId={negocioId} info={info} />
           )}
         </div>
       </div>
@@ -2496,7 +2501,154 @@ function PanelEmpleados({ negocioId, info }) {
     </div>
   );
 }
+/* ============================================================
+   PANEL DE ALERTAS DE CLIMA — v1: dirección + tiempo actual
+   ============================================================ */
+function PanelAlertasClima({ negocioId, info }) {
+  const [cargando, setCargando] = useState(true);
+  const [direccion, setDireccion] = useState('');
+  const [lat, setLat] = useState(null);
+  const [lon, setLon] = useState(null);
+  const [nombreGeocodificado, setNombreGeocodificado] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState(null);
 
+  const [clima, setClima] = useState(null);
+  const [cargandoClima, setCargandoClima] = useState(false);
+
+  useEffect(() => {
+    if (negocioId) cargarConfig();
+  }, [negocioId]);
+
+  async function cargarConfig() {
+    setCargando(true);
+    const { data, error } = await supabase
+      .from('configuracion_alertas_clima')
+      .select('*')
+      .eq('negocio_id', negocioId)
+      .maybeSingle();
+
+    if (error) { setError(error.message); setCargando(false); return; }
+
+    if (data) {
+      setDireccion(data.direccion || '');
+      setLat(data.lat || null);
+      setLon(data.lon || null);
+      setNombreGeocodificado(data.nombre_geocodificado || '');
+      if (data.lat && data.lon) cargarClima(data.lat, data.lon);
+    }
+    setCargando(false);
+  }
+
+  async function cargarClima(latitud, longitud) {
+    setCargandoClima(true);
+    const resultado = await obtenerClimaNegocio(latitud, longitud);
+    if (resultado.ok) setClima(resultado);
+    else setError(resultado.error);
+    setCargandoClima(false);
+  }
+
+  async function handleGuardarDireccion(e) {
+    e.preventDefault();
+    if (!direccion.trim()) return;
+
+    setGuardando(true);
+    setError(null);
+
+    const geo = await geocodificarDireccion(direccion.trim());
+    if (!geo.ok) {
+      setError(geo.error);
+      setGuardando(false);
+      return;
+    }
+
+    const { error: errUpsert } = await supabase.from('configuracion_alertas_clima').upsert(
+      {
+        negocio_id: negocioId,
+        direccion: direccion.trim(),
+        lat: geo.lat,
+        lon: geo.lon,
+        nombre_geocodificado: geo.nombre,
+      },
+      { onConflict: 'negocio_id' }
+    );
+
+    setGuardando(false);
+    if (errUpsert) { setError(errUpsert.message); return; }
+
+    setLat(geo.lat);
+    setLon(geo.lon);
+    setNombreGeocodificado(geo.nombre);
+    await cargarClima(geo.lat, geo.lon);
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 44, marginBottom: 6 }}>{info.icono}</div>
+      <div style={eyebrow}>{info.sub}</div>
+      <h1 style={h1Big}>{info.titulo}</h1>
+
+      {error && <div style={errorBox}>{error}</div>}
+
+      <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}>
+
+        {cargando ? (
+          <p style={{ color: '#B7C7BE' }}>Cargando configuración…</p>
+        ) : (
+          <form onSubmit={handleGuardarDireccion} style={altaBox}>
+            <div>
+              <label style={campoLabel}>Dirección del negocio</label>
+              <input
+                placeholder="ej. Calle Mayor 10, Madrid"
+                value={direccion}
+                onChange={(e) => setDireccion(e.target.value)}
+                style={{ ...input, width: '100%' }}
+                required
+              />
+              {nombreGeocodificado && (
+                <p style={costoHint}>📍 Ubicación detectada: {nombreGeocodificado}</p>
+              )}
+            </div>
+            <button type="submit" disabled={guardando} style={btnLima}>
+              {guardando ? 'Guardando y localizando…' : 'Guardar dirección'}
+            </button>
+          </form>
+        )}
+
+        {cargandoClima && <p style={{ color: '#B7C7BE' }}>Consultando el tiempo…</p>}
+
+        {clima && (
+          <div style={informeCard}>
+            <div style={informeTitulo}>🌤️ Tiempo actual</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#fff' }}>
+              {Math.round(clima.actual.temperatura)}°C
+            </div>
+            <p style={{ color: '#B7C7BE', fontSize: 14, marginTop: 4, textTransform: 'capitalize' }}>
+              {clima.actual.descripcion}
+            </p>
+            <p style={{ color: '#8FA79A', fontSize: 13, marginTop: 8 }}>
+              Sensación térmica: {Math.round(clima.actual.sensacion)}°C · Viento: {clima.actual.viento} m/s
+            </p>
+
+            {clima.alertas && clima.alertas.length > 0 && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,.08)' }}>
+                <div style={{ color: '#E0725A', fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
+                  ⚠️ Avisos oficiales activos
+                </div>
+                {clima.alertas.map((a, i) => (
+                  <div key={i} style={{ ...informeFila, flexDirection: 'column', alignItems: 'flex-start' }}>
+                    <span style={{ color: '#fff', fontWeight: 600 }}>{a.evento}</span>
+                    <span style={{ color: '#8FA79A', fontSize: 12 }}>{a.origen}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 /* ===================== estilos ===================== */
 const wrap = {
   minHeight: '100vh', background: '#0D3A28', display: 'grid', placeItems: 'center',

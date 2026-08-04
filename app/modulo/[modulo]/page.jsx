@@ -11,8 +11,6 @@ import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { supabase } from '../../supabaseClient';
-import { geocodificarDireccion } from '../../../lib/geocodificar';
-import { obtenerClimaNegocio } from '../../../lib/clima';
 
 /* ============================================================
    PÁGINA DE MÓDULO
@@ -2542,25 +2540,56 @@ function PanelAlertasClima({ negocioId, info }) {
 
   async function cargarClima(latitud, longitud) {
     setCargandoClima(true);
-    const resultado = await obtenerClimaNegocio(latitud, longitud);
+    const res = await fetch('/api/alertas-clima', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat: latitud, lon: longitud }),
+    });
+    const resultado = await res.json();
     if (resultado.ok) setClima(resultado);
     else setError(resultado.error);
     setCargandoClima(false);
   }
 
-  async function handleGuardarDireccion(e) {
+ async function handleGuardarDireccion(e) {
     e.preventDefault();
     if (!direccion.trim()) return;
 
     setGuardando(true);
     setError(null);
 
-    const geo = await geocodificarDireccion(direccion.trim());
-    if (!geo.ok) {
-      setError(geo.error);
+    const res = await fetch('/api/alertas-clima', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ direccion: direccion.trim() }),
+    });
+    const resultado = await res.json();
+
+    if (!resultado.ok) {
+      setError(resultado.error);
       setGuardando(false);
       return;
     }
+
+    const { error: errUpsert } = await supabase.from('configuracion_alertas_clima').upsert(
+      {
+        negocio_id: negocioId,
+        direccion: direccion.trim(),
+        lat: resultado.geo.lat,
+        lon: resultado.geo.lon,
+        nombre_geocodificado: resultado.geo.nombre,
+      },
+      { onConflict: 'negocio_id' }
+    );
+
+    setGuardando(false);
+    if (errUpsert) { setError(errUpsert.message); return; }
+
+    setLat(resultado.geo.lat);
+    setLon(resultado.geo.lon);
+    setNombreGeocodificado(resultado.geo.nombre);
+    setClima(resultado);
+  }
 
     const { error: errUpsert } = await supabase.from('configuracion_alertas_clima').upsert(
       {

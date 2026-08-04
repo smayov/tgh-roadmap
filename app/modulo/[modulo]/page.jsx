@@ -2590,27 +2590,7 @@ function PanelAlertasClima({ negocioId, info }) {
     setNombreGeocodificado(resultado.geo.nombre);
     setClima(resultado);
   }
-
-    const { error: errUpsert } = await supabase.from('configuracion_alertas_clima').upsert(
-      {
-        negocio_id: negocioId,
-        direccion: direccion.trim(),
-        lat: geo.lat,
-        lon: geo.lon,
-        nombre_geocodificado: geo.nombre,
-      },
-      { onConflict: 'negocio_id' }
-    );
-
-    setGuardando(false);
-    if (errUpsert) { setError(errUpsert.message); return; }
-
-    setLat(geo.lat);
-    setLon(geo.lon);
-    setNombreGeocodificado(geo.nombre);
-    await cargarClima(geo.lat, geo.lon);
-  }
-
+  
   return (
     <div>
       <div style={{ fontSize: 44, marginBottom: 6 }}>{info.icono}</div>

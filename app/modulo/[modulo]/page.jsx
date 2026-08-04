@@ -2528,12 +2528,11 @@ function PanelAlertasClima({ negocioId, info }) {
 
     if (error) { setError(error.message); setCargando(false); return; }
 
-    if (data) {
+   if (data) {
       setDireccion(data.direccion || '');
-      setLat(data.lat || null);
-      setLon(data.lon || null);
-      setNombreGeocodificado(data.nombre_geocodificado || '');
-      if (data.lat && data.lon) cargarClima(data.lat, data.lon);
+      setLat(data.latitud || null);
+      setLon(data.longitud || null);
+      if (data.latitud && data.longitud) cargarClima(data.latitud, data.longitud);
     }
     setCargando(false);
   }
@@ -2575,9 +2574,8 @@ function PanelAlertasClima({ negocioId, info }) {
       {
         negocio_id: negocioId,
         direccion: direccion.trim(),
-        lat: resultado.geo.lat,
-        lon: resultado.geo.lon,
-        nombre_geocodificado: resultado.geo.nombre,
+        latitud: resultado.geo.lat,
+        longitud: resultado.geo.lon,
       },
       { onConflict: 'negocio_id' }
     );
@@ -2590,7 +2588,7 @@ function PanelAlertasClima({ negocioId, info }) {
     setNombreGeocodificado(resultado.geo.nombre);
     setClima(resultado);
   }
-  
+
   return (
     <div>
       <div style={{ fontSize: 44, marginBottom: 6 }}>{info.icono}</div>

@@ -11,6 +11,7 @@ import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { supabase } from '../../supabaseClient';
+import { generarRecomendaciones } from '../../../lib/recomendaciones';
 
 /* ============================================================
    PÁGINA DE MÓDULO
@@ -2513,6 +2514,7 @@ function PanelAlertasClima({ negocioId, info }) {
 
   const [clima, setClima] = useState(null);
   const [cargandoClima, setCargandoClima] = useState(false);
+  const [umbrales, setUmbrales] = useState({ lluvia: 5, viento: 40, tempMax: 38, tempMin: 2 });
 
   useEffect(() => {
     if (negocioId) cargarConfig();
@@ -2532,6 +2534,12 @@ function PanelAlertasClima({ negocioId, info }) {
       setDireccion(data.direccion || '');
       setLat(data.latitud || null);
       setLon(data.longitud || null);
+      setUmbrales({
+        lluvia: data.umbral_lluvia_mm ?? 5,
+        viento: data.umbral_viento_kmh ?? 40,
+        tempMax: data.umbral_temp_max ?? 38,
+        tempMin: data.umbral_temp_min ?? 2,
+      });
       if (data.latitud && data.longitud) cargarClima(data.latitud, data.longitud);
     }
     setCargando(false);
@@ -2650,6 +2658,23 @@ function PanelAlertasClima({ negocioId, info }) {
                 ))}
               </div>
             )}
+
+            {(() => {
+              const recomendaciones = generarRecomendaciones(clima.actual, umbrales);
+              return (
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,.08)' }}>
+                  <div style={{ color: '#7FC9A4', fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
+                    💡 Recomendaciones
+                  </div>
+                  {recomendaciones.map((r, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
+                      <span>{r.icono}</span>
+                      <span style={{ color: '#EAF3EC', fontSize: 13.5 }}>{r.texto}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>

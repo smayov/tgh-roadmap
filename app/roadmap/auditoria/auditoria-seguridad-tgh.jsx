@@ -9,7 +9,7 @@
 //    /api/auditoria/cliente.
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/app/supabaseClient'; // ajusta esta ruta si tu supabaseClient.js vive en otro sitio
 import { calcularNivelRiesgo, calcularPuntuacionRiesgo } from '@/lib/auditoria';
 
 const PASOS = [
@@ -346,7 +346,6 @@ function ResumenYFirma({ resumen, firma, onChangeResumen, onChangeFirma, nivelRi
 // Modo Gescobit — asistente de 7 pasos
 // ============================================================
 function AsistenteGescobit() {
-  const supabase = createClientComponentClient();
   const [auditoriaId, setAuditoriaId] = useState(null);
   const [datos, setDatos] = useState({
     datos_negocio: {}, alcance: {}, operativa: {}, seguridad: {},
@@ -395,9 +394,13 @@ function AsistenteGescobit() {
     setGuardando(true);
     setError(null);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/api/auditoria', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
         body: JSON.stringify({ auditoriaId }),
       });
       const json = await res.json();

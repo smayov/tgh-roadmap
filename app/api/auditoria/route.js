@@ -1,19 +1,32 @@
 // app/api/auditoria/route.js
-// Uso de Gescobit (autenticado). RLS se encarga de que cada uno solo
-// vea/edite sus propias auditorías — aquí no hace falta service role.
+// Uso de Gescobit (autenticado). El cliente envía su token de sesión en
+// Authorization: Bearer <token>; lo validamos con el cliente de servicio
+// y luego filtramos explícitamente por created_by, ya que este cliente
+// admin salta RLS (mismo patrón que lib/auditoria.js).
 
 import { NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
 import { generarCodigoUnico } from '@/lib/auditoria';
 
-// POST /api/auditoria/generar-codigo
+function supabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+}
+
+// POST /api/auditoria
+// headers: Authorization: Bearer <access_token de la sesión del usuario>
 // body: { auditoriaId, horasValidez? } — por defecto 72h
 export async function POST(request) {
-  const supabase = createRouteHandlerClient({ cookies });
-  const { data: { user } } = await supabase.auth.getUser();
+  const token = (request.headers.get('authorization') || '').replace('Bearer ', '');
+  if (!token) {
+    return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
+  }
 
-  if (!user) {
+  const admin = supabaseAdmin();
+  const { data: { user }, error: authError } = await admin.auth.getUser(token);
+  if (authError || !user) {
     return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
   }
 
@@ -28,7 +41,7 @@ export async function POST(request) {
     const codigo = await generarCodigoUnico();
     const expira = new Date(Date.now() + horasValidez * 60 * 60 * 1000).toISOString();
 
-    const { data, error } = await supabase
+    const { data, error } = await admin
       .from('auditorias')
       .update({
         codigo_cliente: codigo,
@@ -36,7 +49,7 @@ export async function POST(request) {
         estado: 'enviado_cliente',
       })
       .eq('id', body.auditoriaId)
-      .eq('created_by', user.id) // redundante con RLS, pero explícito
+      .eq('created_by', user.id) // clave: el cliente admin salta RLS, así que hay que comprobar la propiedad a mano
       .select()
       .single();
 

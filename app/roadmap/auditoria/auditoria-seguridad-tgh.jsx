@@ -97,7 +97,7 @@ function RiskMeter({ hallazgos }) {
   return (
     <div className="border border-neutral-200 rounded-2xl p-5 flex items-center gap-4 bg-white">
       <div className="relative w-16 h-16 flex items-center justify-center">
-        <svg className="w-16 h-16 -rotate-90">
+        <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
           <circle cx="32" cy="32" r="26" stroke="#e5e0d8" strokeWidth="6" fill="none" />
           <circle
             cx="32" cy="32" r="26" stroke="#1a1a1a" strokeWidth="6" fill="none"
@@ -108,9 +108,9 @@ function RiskMeter({ hallazgos }) {
         </svg>
         <span className="absolute text-lg font-semibold">{score}</span>
       </div>
-      <div>
-        <p className="text-xs tracking-wide text-neutral-500 uppercase">Nivel de riesgo</p>
-        <p className="font-semibold text-neutral-800">{label}</p>
+      <div className="min-w-0">
+        <p className="text-xs tracking-wide text-neutral-500 uppercase whitespace-nowrap">Nivel de riesgo</p>
+        <p className="font-semibold text-neutral-800 whitespace-nowrap">{label}</p>
       </div>
     </div>
   );
@@ -134,8 +134,8 @@ function Chip({ label, selected, onClick }) {
 
 function YesNoRow({ label, value, onChange }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-3 border-b border-neutral-100 last:border-0">
-      <p className="text-sm text-neutral-700">{label}</p>
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 py-3 border-b border-neutral-100 last:border-0">
+      <p className="text-sm text-neutral-700 min-w-0">{label}</p>
       <div className="flex gap-2 shrink-0">
         {['si', 'no'].map((opt) => (
           <button
@@ -278,18 +278,18 @@ export default function AuditoriaSeguridadTGH() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-5 space-y-6">
-      <div className="flex items-start justify-between gap-4">
+    <div className="max-w-2xl mx-auto p-5 space-y-6 overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <h1 className="text-3xl font-semibold text-neutral-900">Auditoría de<br />seguridad</h1>
         <RiskMeter hallazgos={hallazgos} />
       </div>
 
       <StepProgress step={step} />
-      <div className="flex items-center justify-between">
-        <p className="text-xs tracking-wide text-neutral-400 uppercase">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs tracking-wide text-neutral-400 uppercase min-w-0 truncate">
           Paso {step + 1} de {STEPS.length} · {STEPS[step].label}
         </p>
-        <OwnerBadge owner={STEPS[step].owner} />
+        <span className="shrink-0"><OwnerBadge owner={STEPS[step].owner} /></span>
       </div>
 
       <div className="bg-white border border-neutral-200 rounded-2xl p-6">
@@ -306,7 +306,7 @@ export default function AuditoriaSeguridadTGH() {
               <div key={key}>
                 <label className="text-sm text-neutral-600">{label}</label>
                 <input
-                  className="mt-1 w-full border border-neutral-300 rounded-xl px-3 py-2"
+                  className="mt-1 w-full min-w-0 border border-neutral-300 rounded-xl px-3 py-2"
                   value={datos[key]}
                   onChange={(e) => setDatos({ ...datos, [key]: e.target.value })}
                 />
@@ -334,11 +334,11 @@ export default function AuditoriaSeguridadTGH() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm text-neutral-600">Nº de dispositivos con acceso</label>
                 <input
-                  className="mt-1 w-full border border-neutral-300 rounded-xl px-3 py-2"
+                  className="mt-1 w-full min-w-0 border border-neutral-300 rounded-xl px-3 py-2"
                   value={alcance.numDispositivos}
                   onChange={(e) => setAlcance({ ...alcance, numDispositivos: e.target.value })}
                 />
@@ -346,7 +346,7 @@ export default function AuditoriaSeguridadTGH() {
               <div>
                 <label className="text-sm text-neutral-600">Nº de empleados con acceso</label>
                 <input
-                  className="mt-1 w-full border border-neutral-300 rounded-xl px-3 py-2"
+                  className="mt-1 w-full min-w-0 border border-neutral-300 rounded-xl px-3 py-2"
                   value={alcance.numEmpleadosConAcceso}
                   onChange={(e) => setAlcance({ ...alcance, numEmpleadosConAcceso: e.target.value })}
                 />
@@ -359,12 +359,12 @@ export default function AuditoriaSeguridadTGH() {
               onChange={(v) => setAlcance({ ...alcance, incidentePrevio: v })}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm text-neutral-600">Presupuesto orientativo</label>
                 <input
                   placeholder="Ej. 500-1000€"
-                  className="mt-1 w-full border border-neutral-300 rounded-xl px-3 py-2"
+                  className="mt-1 w-full min-w-0 border border-neutral-300 rounded-xl px-3 py-2"
                   value={alcance.presupuestoOrientativo}
                   onChange={(e) => setAlcance({ ...alcance, presupuestoOrientativo: e.target.value })}
                 />
@@ -372,7 +372,7 @@ export default function AuditoriaSeguridadTGH() {
               <div>
                 <label className="text-sm text-neutral-600">Urgencia</label>
                 <select
-                  className="mt-1 w-full border border-neutral-300 rounded-xl px-3 py-2"
+                  className="mt-1 w-full min-w-0 border border-neutral-300 rounded-xl px-3 py-2"
                   value={alcance.urgencia}
                   onChange={(e) => setAlcance({ ...alcance, urgencia: e.target.value })}
                 >
@@ -384,12 +384,12 @@ export default function AuditoriaSeguridadTGH() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm text-neutral-600">Fecha de la visita</label>
                 <input
                   type="date"
-                  className="mt-1 w-full border border-neutral-300 rounded-xl px-3 py-2"
+                  className="mt-1 w-full min-w-0 border border-neutral-300 rounded-xl px-3 py-2"
                   value={alcance.fechaVisita}
                   onChange={(e) => setAlcance({ ...alcance, fechaVisita: e.target.value })}
                 />
@@ -397,7 +397,7 @@ export default function AuditoriaSeguridadTGH() {
               <div>
                 <label className="text-sm text-neutral-600">Auditor responsable</label>
                 <input
-                  className="mt-1 w-full border border-neutral-300 rounded-xl px-3 py-2"
+                  className="mt-1 w-full min-w-0 border border-neutral-300 rounded-xl px-3 py-2"
                   value={alcance.auditor}
                   onChange={(e) => setAlcance({ ...alcance, auditor: e.target.value })}
                 />
@@ -449,13 +449,13 @@ export default function AuditoriaSeguridadTGH() {
               <div key={h.id} className="border border-neutral-200 rounded-xl p-4 space-y-2">
                 <input
                   placeholder="Área (ej. software de gestión, accesos, backups...)"
-                  className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
                   value={h.area}
                   onChange={(e) => { const c = [...hallazgos]; c[i].area = e.target.value; setHallazgos(c); }}
                 />
                 <textarea
                   placeholder="Descripción del hallazgo"
-                  className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
                   value={h.descripcion}
                   onChange={(e) => { const c = [...hallazgos]; c[i].descripcion = e.target.value; setHallazgos(c); }}
                 />
@@ -499,31 +499,31 @@ export default function AuditoriaSeguridadTGH() {
               <div key={e.id} className="border border-neutral-200 rounded-xl p-4 space-y-2">
                 <input
                   placeholder="Hallazgo relacionado"
-                  className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
                   value={e.hallazgoRelacionado}
                   onChange={(ev) => { const c = [...estimacion]; c[i].hallazgoRelacionado = ev.target.value; setEstimacion(c); }}
                 />
                 <input
                   placeholder="Solución propuesta (ej. gestor de contraseñas + 2FA en correo)"
-                  className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
                   value={e.solucionPropuesta}
                   onChange={(ev) => { const c = [...estimacion]; c[i].solucionPropuesta = ev.target.value; setEstimacion(c); }}
                 />
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <input
                     placeholder="Horas"
-                    className="border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                    className="w-full min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
                     value={e.horas}
                     onChange={(ev) => { const c = [...estimacion]; c[i].horas = ev.target.value; setEstimacion(c); }}
                   />
                   <input
                     placeholder="Precio (€)"
-                    className="border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                    className="w-full min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
                     value={e.precio}
                     onChange={(ev) => { const c = [...estimacion]; c[i].precio = ev.target.value; setEstimacion(c); }}
                   />
                   <select
-                    className="border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                    className="w-full min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
                     value={e.tipoPago}
                     onChange={(ev) => { const c = [...estimacion]; c[i].tipoPago = ev.target.value; setEstimacion(c); }}
                   >
@@ -556,13 +556,13 @@ export default function AuditoriaSeguridadTGH() {
               <div key={p.id} className="border border-neutral-200 rounded-xl p-4 space-y-2">
                 <input
                   placeholder="Acción recomendada (ej. activar 2FA en el correo)"
-                  className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
                   value={p.accion}
                   onChange={(e) => { const c = [...plan]; c[i].accion = e.target.value; setPlan(c); }}
                 />
                 <input
                   placeholder="Responsable"
-                  className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
                   value={p.responsable}
                   onChange={(e) => { const c = [...plan]; c[i].responsable = e.target.value; setPlan(c); }}
                 />
@@ -576,7 +576,7 @@ export default function AuditoriaSeguridadTGH() {
             <h2 className="text-lg font-medium text-neutral-800">Resumen y firma</h2>
             <textarea
               placeholder="Resumen ejecutivo"
-              className="w-full border border-neutral-300 rounded-xl px-3 py-2 text-sm"
+              className="w-full min-w-0 border border-neutral-300 rounded-xl px-3 py-2 text-sm"
               rows={4}
               value={resumen.resumenEjecutivo}
               onChange={(e) => setResumen({ ...resumen, resumenEjecutivo: e.target.value })}
@@ -587,16 +587,16 @@ export default function AuditoriaSeguridadTGH() {
                 <span className="text-lg font-semibold text-neutral-900">{totalEstimado.toLocaleString('es-ES')} €</span>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <input
                 placeholder="Firma del cliente"
-                className="border border-neutral-300 rounded-xl px-3 py-2 text-sm"
+                className="w-full min-w-0 border border-neutral-300 rounded-xl px-3 py-2 text-sm"
                 value={resumen.firmaCliente}
                 onChange={(e) => setResumen({ ...resumen, firmaCliente: e.target.value })}
               />
               <input
                 placeholder="Firma Gescobit"
-                className="border border-neutral-300 rounded-xl px-3 py-2 text-sm"
+                className="w-full min-w-0 border border-neutral-300 rounded-xl px-3 py-2 text-sm"
                 value={resumen.firmaGescobit}
                 onChange={(e) => setResumen({ ...resumen, firmaGescobit: e.target.value })}
               />

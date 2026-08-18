@@ -1,95 +1,151 @@
 'use client';
 
-// auditoria-seguridad-tgh.jsx
-// Herramienta interna de Gescobit para auditar operativa/seguridad de
-// clientes potenciales. Dos modos:
-//  - Gescobit (autenticado, Supabase con sesión + RLS): asistente de 7 pasos.
-//  - Cliente (sin cuenta, código de 6 caracteres): página única con los
-//    campos "azules" (datos_negocio, operativa, seguridad), servida por
-//    /api/auditoria/cliente.
+import { useState } from 'react';
+import { supabase } from '../../supabaseClient';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { supabase } from '@/app/supabaseClient'; // ajusta esta ruta si tu supabaseClient.js vive en otro sitio
-import { calcularNivelRiesgo, calcularPuntuacionRiesgo } from '@/lib/auditoria';
+/**
+ * Auditoría de Seguridad — Gescobit
+ * Enfoque: seguridad de software y aplicaciones del negocio, con paso de
+ * estimación para que sirva de base a la propuesta comercial.
+ *
+ * Cada paso lleva una etiqueta CLIENTE (lo rellena el cliente vía código
+ * de 6 caracteres, modo cliente) o GESCOBIT (lo rellena el auditor).
+ *
+ * 8 pasos:
+ *  1. Datos del negocio           — CLIENTE
+ *  2. Alcance / sistemas          — CLIENTE
+ *  3. Accesos y credenciales      — GESCOBIT
+ *  4. Datos y RGPD digital        — GESCOBIT
+ *  5. Matriz de hallazgos         — GESCOBIT
+ *  6. Estimación de la solución   — GESCOBIT (nuevo)
+ *  7. Plan de mejora / propuesta  — GESCOBIT
+ *  8. Resumen y firma             — GESCOBIT
+ */
 
-const PASOS = [
-  { id: 'datos_negocio', titulo: 'Datos', tipo: 'azul' },
-  { id: 'alcance', titulo: 'Alcance', tipo: 'verde' },
-  { id: 'operativa', titulo: 'Operativa', tipo: 'azul' },
-  { id: 'seguridad', titulo: 'Seguridad', tipo: 'azul' },
-  { id: 'matriz_hallazgos', titulo: 'Hallazgos', tipo: 'verde' },
-  { id: 'plan_mejora', titulo: 'Plan de mejora', tipo: 'verde' },
-  { id: 'resumen', titulo: 'Resumen y firma', tipo: 'verde' },
+const STEPS = [
+  { label: 'Datos', owner: 'cliente' },
+  { label: 'Alcance', owner: 'cliente' },
+  { label: 'Accesos', owner: 'gescobit' },
+  { label: 'Datos y RGPD', owner: 'gescobit' },
+  { label: 'Hallazgos', owner: 'gescobit' },
+  { label: 'Estimación', owner: 'gescobit' },
+  { label: 'Plan de mejora', owner: 'gescobit' },
+  { label: 'Resumen', owner: 'gescobit' },
 ];
 
-const COLOR_RIESGO = { alto: '#DC4C3F', medio: '#D9A83E', bajo: '#3E9B6F' };
+const SISTEMAS_OPCIONES = [
+  'TPV / caja registradora',
+  'Software de gestión (ERP/back office)',
+  'Reservas online',
+  'Contabilidad / facturación',
+  'Wifi y red del local',
+  'Correo y ofimática',
+];
 
-const AREAS_ALCANCE = ['Caja', 'Accesos', 'Cámaras', 'Datos de clientes', 'Personal', 'Proveedores'];
-const CATEGORIAS_HALLAZGO = ['Acceso físico', 'Caja y efectivo', 'Videovigilancia', 'Datos y RGPD', 'Personal', 'Continuidad de negocio'];
+const ACCESOS_ITEMS = [
+  { key: 'contrasenas_unicas', label: '¿Cada empleado tiene su propio usuario y contraseña (no compartidos)?' },
+  { key: 'politica_contrasenas', label: '¿Existe una política mínima de contraseñas (longitud, cambio periódico)?' },
+  { key: 'doble_factor', label: '¿Los accesos críticos (banca, gestión, email) tienen doble factor (2FA)?' },
+  { key: 'permisos_por_rol', label: '¿Los permisos están limitados por rol (no todos ven/editan todo)?' },
+  { key: 'baja_accesos', label: '¿Se revocan los accesos cuando un empleado deja el puesto?' },
+];
 
-// ============================================================
-// Campos de formulario reutilizables
-// ============================================================
-function Campo({ label, value, onChange, type = 'text', placeholder, className = '' }) {
+const DATOS_RGPD_ITEMS = [
+  { key: 'copias_seguridad', label: '¿Existen copias de seguridad periódicas de los datos del negocio?' },
+  { key: 'copias_cifradas', label: '¿Esas copias están cifradas o en un proveedor con garantías (nube reconocida)?' },
+  { key: 'alojamiento_datos', label: '¿Se sabe dónde se alojan los datos (servidor propio, nube, proveedor del software)?' },
+  { key: 'consentimiento_web', label: '¿La web/app de reservas pide consentimiento explícito para tratar datos del cliente?' },
+  { key: 'politica_privacidad', label: '¿Existe política de privacidad visible y actualizada?' },
+];
+
+const NIVEL_RIESGO = { alto: 3, medio: 2, bajo: 1 };
+
+function OwnerBadge({ owner }) {
+  const isCliente = owner === 'cliente';
   return (
-    <label className={`block ${className}`}>
-      <span className="mb-1 block text-xs font-medium text-stone-500">{label}</span>
-      <input
-        type={type}
-        value={value ?? ''}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
-      />
-    </label>
+    <span
+      className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${
+        isCliente ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700'
+      }`}
+    >
+      {isCliente ? 'Lo rellena el cliente' : 'Lo completa Gescobit'}
+    </span>
   );
 }
 
-function CampoTextarea({ label, value, onChange, placeholder, className = '' }) {
+function StepProgress({ step }) {
   return (
-    <label className={`block ${className}`}>
-      <span className="mb-1 block text-xs font-medium text-stone-500">{label}</span>
-      <textarea
-        value={value ?? ''}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        rows={3}
-        className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
-      />
-    </label>
+    <div className="flex gap-2 mb-2">
+      {STEPS.map((_, i) => (
+        <div
+          key={i}
+          className={`h-1.5 flex-1 rounded-full ${i <= step ? 'bg-neutral-900' : 'bg-neutral-200'}`}
+        />
+      ))}
+    </div>
   );
 }
 
-function CampoSelect({ label, value, onChange, opciones, className = '' }) {
+function RiskMeter({ hallazgos }) {
+  const score = hallazgos.reduce((acc, h) => acc + (NIVEL_RIESGO[h.nivel] || 0), 0);
+  const label = hallazgos.length === 0
+    ? 'Sin datos aún'
+    : score >= 12 ? 'Riesgo alto'
+    : score >= 6 ? 'Riesgo medio'
+    : 'Riesgo bajo';
+
   return (
-    <label className={`block ${className}`}>
-      <span className="mb-1 block text-xs font-medium text-stone-500">{label}</span>
-      <select
-        value={value ?? ''}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
-      >
-        <option value="">Selecciona…</option>
-        {opciones.map((o) => (
-          <option key={o} value={o}>{o}</option>
-        ))}
-      </select>
-    </label>
+    <div className="border border-neutral-200 rounded-2xl p-5 flex items-center gap-4 bg-white">
+      <div className="relative w-16 h-16 flex items-center justify-center">
+        <svg className="w-16 h-16 -rotate-90">
+          <circle cx="32" cy="32" r="26" stroke="#e5e0d8" strokeWidth="6" fill="none" />
+          <circle
+            cx="32" cy="32" r="26" stroke="#1a1a1a" strokeWidth="6" fill="none"
+            strokeDasharray={2 * Math.PI * 26}
+            strokeDashoffset={2 * Math.PI * 26 * (1 - Math.min(score / 15, 1))}
+            strokeLinecap="round"
+          />
+        </svg>
+        <span className="absolute text-lg font-semibold">{score}</span>
+      </div>
+      <div>
+        <p className="text-xs tracking-wide text-neutral-500 uppercase">Nivel de riesgo</p>
+        <p className="font-semibold text-neutral-800">{label}</p>
+      </div>
+    </div>
   );
 }
 
-function CampoSiNo({ label, value, onChange, className = '' }) {
+function Chip({ label, selected, onClick }) {
   return (
-    <div className={`flex items-center justify-between rounded-md border border-stone-200 px-3 py-2 ${className}`}>
-      <span className="text-sm text-stone-700">{label}</span>
-      <div className="flex gap-1">
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-5 py-3 rounded-full text-base border transition ${
+        selected
+          ? 'bg-neutral-900 text-white border-neutral-900'
+          : 'bg-neutral-100 text-neutral-800 border-transparent hover:bg-neutral-200'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function YesNoRow({ label, value, onChange }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3 border-b border-neutral-100 last:border-0">
+      <p className="text-sm text-neutral-700">{label}</p>
+      <div className="flex gap-2 shrink-0">
         {['si', 'no'].map((opt) => (
           <button
             key={opt}
             type="button"
             onClick={() => onChange(opt)}
-            className={`rounded-md px-3 py-1 text-xs font-medium ${
-              value === opt ? 'bg-stone-800 text-white' : 'bg-stone-100 text-stone-500'
+            className={`px-3 py-1.5 rounded-full text-sm border ${
+              value === opt
+                ? opt === 'si' ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-red-50 text-red-700 border-red-200'
+                : 'bg-white text-neutral-500 border-neutral-200'
             }`}
           >
             {opt === 'si' ? 'Sí' : 'No'}
@@ -100,553 +156,492 @@ function CampoSiNo({ label, value, onChange, className = '' }) {
   );
 }
 
-// ============================================================
-// Medidor de riesgo en vivo
-// ============================================================
-function MedidorRiesgo({ hallazgos }) {
-  const puntuacion = calcularPuntuacionRiesgo(hallazgos);
-  const nivel = calcularNivelRiesgo(hallazgos);
-  const color = nivel ? COLOR_RIESGO[nivel] : '#B8B2A5';
+export default function AuditoriaSeguridadTGH() {
+  const [step, setStep] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  return (
-    <div className="flex items-center gap-3 rounded-lg border border-stone-200 bg-white px-4 py-3">
-      <div className="relative h-14 w-14 shrink-0">
-        <svg viewBox="0 0 36 36" className="h-14 w-14 -rotate-90">
-          <circle cx="18" cy="18" r="15.5" fill="none" stroke="#EDE9E1" strokeWidth="4" />
-          <circle
-            cx="18" cy="18" r="15.5" fill="none"
-            stroke={color} strokeWidth="4" strokeLinecap="round"
-            strokeDasharray={`${(puntuacion / 100) * 97.4} 97.4`}
-            style={{ transition: 'stroke-dasharray 0.4s ease' }}
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-stone-700">
-          {puntuacion}
-        </div>
-      </div>
-      <div>
-        <p className="text-xs uppercase tracking-wide text-stone-400">Nivel de riesgo</p>
-        <p className="text-sm font-semibold" style={{ color }}>
-          {nivel ? nivel.charAt(0).toUpperCase() + nivel.slice(1) : 'Sin datos aún'}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// Paso 1 — Datos del negocio (azul, compartido con el cliente)
-// ============================================================
-function CamposDatosNegocio({ valor, onChange }) {
-  const set = (campo) => (v) => onChange({ ...valor, [campo]: v });
-  return (
-    <div className="grid grid-cols-2 gap-4">
-      <Campo label="Nombre del negocio" value={valor.nombre} onChange={set('nombre')} className="col-span-2" />
-      <CampoSelect
-        label="Tipo de negocio" value={valor.tipo} onChange={set('tipo')}
-        opciones={['Bar', 'Restaurante', 'Hotel', 'Otro']}
-      />
-      <Campo label="Nº de empleados" type="number" value={valor.num_empleados} onChange={set('num_empleados')} />
-      <Campo label="Dirección" value={valor.direccion} onChange={set('direccion')} className="col-span-2" />
-      <Campo label="Persona de contacto" value={valor.contacto_nombre} onChange={set('contacto_nombre')} />
-      <Campo label="Teléfono" value={valor.contacto_telefono} onChange={set('contacto_telefono')} />
-      <Campo label="Email" type="email" value={valor.contacto_email} onChange={set('contacto_email')} className="col-span-2" />
-    </div>
-  );
-}
-
-// ============================================================
-// Paso 2 — Alcance (verde, solo Gescobit)
-// ============================================================
-function CamposAlcance({ valor, onChange }) {
-  const areas = valor.areas || [];
-  const toggleArea = (area) => {
-    const nuevas = areas.includes(area) ? areas.filter((a) => a !== area) : [...areas, area];
-    onChange({ ...valor, areas: nuevas });
-  };
-  return (
-    <div className="space-y-4">
-      <div>
-        <span className="mb-2 block text-xs font-medium text-stone-500">Áreas a auditar</span>
-        <div className="flex flex-wrap gap-2">
-          {AREAS_ALCANCE.map((area) => (
-            <button
-              key={area}
-              type="button"
-              onClick={() => toggleArea(area)}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-                areas.includes(area) ? 'bg-stone-800 text-white' : 'bg-stone-100 text-stone-600'
-              }`}
-            >
-              {area}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <Campo label="Fecha de la visita" type="date" value={valor.fecha_visita} onChange={(v) => onChange({ ...valor, fecha_visita: v })} />
-        <Campo label="Auditor responsable" value={valor.auditor} onChange={(v) => onChange({ ...valor, auditor: v })} />
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// Paso 3 — Operativa (azul, compartido con el cliente)
-// ============================================================
-function CamposOperativa({ valor, onChange }) {
-  const set = (campo) => (v) => onChange({ ...valor, [campo]: v });
-  return (
-    <div className="grid grid-cols-2 gap-4">
-      <Campo label="Horario de apertura" type="time" value={valor.horario_apertura} onChange={set('horario_apertura')} />
-      <Campo label="Horario de cierre" type="time" value={valor.horario_cierre} onChange={set('horario_cierre')} />
-      <CampoTextarea
-        label="Procedimiento de apertura/cierre" value={valor.procedimiento_apertura_cierre}
-        onChange={set('procedimiento_apertura_cierre')} className="col-span-2"
-      />
-      <CampoSelect
-        label="Gestión de caja" value={valor.gestion_caja} onChange={set('gestion_caja')}
-        opciones={['Solo efectivo', 'Solo tarjeta', 'Mixto']}
-      />
-      <CampoSelect
-        label="Control de inventario" value={valor.control_inventario} onChange={set('control_inventario')}
-        opciones={['Manual', 'Software', 'Sin control']}
-      />
-      <Campo
-        label="Software de gestión que usan" value={valor.software_gestion} onChange={set('software_gestion')}
-        placeholder="TGH, otro, ninguno…" className="col-span-2"
-      />
-    </div>
-  );
-}
-
-// ============================================================
-// Paso 4 — Seguridad (azul, compartido con el cliente)
-// ============================================================
-function CamposSeguridad({ valor, onChange }) {
-  const set = (campo) => (v) => onChange({ ...valor, [campo]: v });
-  return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
-        <CampoSiNo label="Alarma instalada" value={valor.alarma} onChange={set('alarma')} />
-        <CampoSiNo label="Cámaras de videovigilancia" value={valor.camaras} onChange={set('camaras')} />
-        <CampoSiNo label="Control de accesos" value={valor.control_accesos} onChange={set('control_accesos')} />
-        <CampoSiNo label="Caja fuerte" value={valor.caja_fuerte} onChange={set('caja_fuerte')} />
-        <CampoSiNo label="Seguro del negocio" value={valor.seguro_negocio} onChange={set('seguro_negocio')} />
-        <CampoSiNo label="Copias de seguridad de datos" value={valor.copias_seguridad} onChange={set('copias_seguridad')} />
-        <CampoSiNo label="Consentimientos RGPD de clientes" value={valor.consentimientos_rgpd} onChange={set('consentimientos_rgpd')} />
-      </div>
-      {valor.camaras === 'si' && (
-        <Campo label="Número de cámaras" type="number" value={valor.num_camaras} onChange={set('num_camaras')} />
-      )}
-      <CampoTextarea label="Protocolo ante robo o incidente" value={valor.protocolo_robo} onChange={set('protocolo_robo')} />
-    </div>
-  );
-}
-
-// ============================================================
-// Paso 5 — Matriz de hallazgos (verde, lista dinámica)
-// ============================================================
-function MatrizHallazgos({ valor, onChange }) {
-  const hallazgos = valor || [];
-
-  const anadir = () => {
-    onChange([...hallazgos, { id: crypto.randomUUID(), categoria: CATEGORIAS_HALLAZGO[0], hallazgo: '', nivel: 'bajo', notas: '' }]);
-  };
-  const actualizar = (id, campo, v) => {
-    onChange(hallazgos.map((h) => (h.id === id ? { ...h, [campo]: v } : h)));
-  };
-  const eliminar = (id) => onChange(hallazgos.filter((h) => h.id !== id));
-
-  return (
-    <div className="space-y-3">
-      {hallazgos.length === 0 && <p className="text-sm text-stone-400">Sin hallazgos registrados todavía.</p>}
-      {hallazgos.map((h) => (
-        <div key={h.id} className="rounded-md border border-stone-200 p-3">
-          <div className="mb-2 grid grid-cols-2 gap-2">
-            <CampoSelect label="Categoría" value={h.categoria} onChange={(v) => actualizar(h.id, 'categoria', v)} opciones={CATEGORIAS_HALLAZGO} />
-            <CampoSelect label="Nivel" value={h.nivel} onChange={(v) => actualizar(h.id, 'nivel', v)} opciones={['bajo', 'medio', 'alto']} />
-          </div>
-          <Campo label="Hallazgo" value={h.hallazgo} onChange={(v) => actualizar(h.id, 'hallazgo', v)} className="mb-2" />
-          <CampoTextarea label="Notas" value={h.notas} onChange={(v) => actualizar(h.id, 'notas', v)} />
-          <button type="button" onClick={() => eliminar(h.id)} className="mt-2 text-xs text-red-600">Eliminar</button>
-        </div>
-      ))}
-      <button type="button" onClick={anadir} className="w-full rounded-md border border-dashed border-stone-300 py-2 text-sm text-stone-500 hover:bg-stone-50">
-        + Añadir hallazgo
-      </button>
-    </div>
-  );
-}
-
-// ============================================================
-// Paso 6 — Plan de mejora (verde, lista dinámica)
-// ============================================================
-function PlanMejora({ valor, onChange }) {
-  const acciones = valor || [];
-
-  const anadir = () => {
-    onChange([...acciones, { id: crypto.randomUUID(), accion: '', prioridad: 'media', plazo: '', responsable: '' }]);
-  };
-  const actualizar = (id, campo, v) => {
-    onChange(acciones.map((a) => (a.id === id ? { ...a, [campo]: v } : a)));
-  };
-  const eliminar = (id) => onChange(acciones.filter((a) => a.id !== id));
-
-  return (
-    <div className="space-y-3">
-      {acciones.length === 0 && <p className="text-sm text-stone-400">Sin acciones registradas todavía.</p>}
-      {acciones.map((a) => (
-        <div key={a.id} className="rounded-md border border-stone-200 p-3">
-          <Campo label="Acción" value={a.accion} onChange={(v) => actualizar(a.id, 'accion', v)} className="mb-2" />
-          <div className="grid grid-cols-3 gap-2">
-            <CampoSelect label="Prioridad" value={a.prioridad} onChange={(v) => actualizar(a.id, 'prioridad', v)} opciones={['baja', 'media', 'alta']} />
-            <Campo label="Plazo" value={a.plazo} onChange={(v) => actualizar(a.id, 'plazo', v)} placeholder="2 semanas…" />
-            <Campo label="Responsable" value={a.responsable} onChange={(v) => actualizar(a.id, 'responsable', v)} />
-          </div>
-          <button type="button" onClick={() => eliminar(a.id)} className="mt-2 text-xs text-red-600">Eliminar</button>
-        </div>
-      ))}
-      <button type="button" onClick={anadir} className="w-full rounded-md border border-dashed border-stone-300 py-2 text-sm text-stone-500 hover:bg-stone-50">
-        + Añadir acción
-      </button>
-    </div>
-  );
-}
-
-// ============================================================
-// Paso 7 — Resumen y firma
-// ============================================================
-function ResumenYFirma({ resumen, firma, onChangeResumen, onChangeFirma, nivelRiesgo }) {
-  return (
-    <div className="space-y-4">
-      <CampoTextarea label="Resumen ejecutivo" value={resumen.resumen_ejecutivo} onChange={(v) => onChangeResumen({ ...resumen, resumen_ejecutivo: v })} />
-      {nivelRiesgo && (
-        <p className="text-sm text-stone-600">
-          Nivel de riesgo global: <strong style={{ color: COLOR_RIESGO[nivelRiesgo] }}>{nivelRiesgo}</strong>
-        </p>
-      )}
-      <div className="grid grid-cols-2 gap-4 border-t border-stone-200 pt-4">
-        <div>
-          <p className="mb-2 text-xs font-medium text-stone-500">Firma del cliente</p>
-          <Campo label="Nombre" value={firma.cliente_nombre} onChange={(v) => onChangeFirma({ ...firma, cliente_nombre: v })} className="mb-2" />
-          <Campo label="Fecha" type="date" value={firma.cliente_fecha} onChange={(v) => onChangeFirma({ ...firma, cliente_fecha: v })} />
-        </div>
-        <div>
-          <p className="mb-2 text-xs font-medium text-stone-500">Firma de Gescobit</p>
-          <Campo label="Nombre" value={firma.gescobit_nombre} onChange={(v) => onChangeFirma({ ...firma, gescobit_nombre: v })} className="mb-2" />
-          <Campo label="Fecha" type="date" value={firma.gescobit_fecha} onChange={(v) => onChangeFirma({ ...firma, gescobit_fecha: v })} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// Modo Gescobit — asistente de 7 pasos
-// ============================================================
-function AsistenteGescobit() {
-  const [auditoriaId, setAuditoriaId] = useState(null);
-  const [datos, setDatos] = useState({
-    datos_negocio: {}, alcance: {}, operativa: {}, seguridad: {},
-    matriz_hallazgos: [], plan_mejora: [], resumen: {}, firma: {},
+  // CLIENTE
+  const [datos, setDatos] = useState({ nombre: '', tipo: '', direccion: '', empleados: '', contacto: '' });
+  const [alcance, setAlcance] = useState({
+    sistemas: [],
+    sistemasDetalle: '',
+    numDispositivos: '',
+    numEmpleadosConAcceso: '',
+    incidentePrevio: '',
+    presupuestoOrientativo: '',
+    urgencia: '',
+    fechaVisita: '',
+    auditor: '',
   });
-  const [pasoActual, setPasoActual] = useState(0);
-  const [guardando, setGuardando] = useState(false);
-  const [codigoGenerado, setCodigoGenerado] = useState(null);
-  const [error, setError] = useState(null);
 
-  // Crea el borrador en cuanto se entra a la herramienta.
-  useEffect(() => {
-    async function crearBorrador() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+  // GESCOBIT
+  const [accesos, setAccesos] = useState({});
+  const [datosRgpd, setDatosRgpd] = useState({});
+  const [hallazgos, setHallazgos] = useState([]);
+  const [estimacion, setEstimacion] = useState([]);
+  const [plan, setPlan] = useState([]);
+  const [resumen, setResumen] = useState({ resumenEjecutivo: '', firmaCliente: '', firmaGescobit: '' });
 
-      const { data, error } = await supabase
-        .from('auditorias')
-        .insert({ created_by: user.id })
-        .select()
-        .single();
+  const toggleSistema = (s) => {
+    setAlcance((prev) => ({
+      ...prev,
+      sistemas: prev.sistemas.includes(s) ? prev.sistemas.filter((x) => x !== s) : [...prev.sistemas, s],
+    }));
+  };
 
-      if (error) { setError('No se pudo iniciar la auditoría.'); return; }
-      setAuditoriaId(data.id);
+  const addHallazgo = () => {
+    setHallazgos((h) => [...h, { id: crypto.randomUUID(), area: '', descripcion: '', nivel: 'medio' }]);
+  };
+
+  const addEstimacionItem = () => {
+    setEstimacion((e) => [
+      ...e,
+      { id: crypto.randomUUID(), hallazgoRelacionado: '', solucionPropuesta: '', horas: '', precio: '', tipoPago: 'unico' },
+    ]);
+  };
+
+  const addPlanItem = () => {
+    setPlan((p) => [...p, { id: crypto.randomUUID(), accion: '', prioridad: 'media', responsable: '' }]);
+  };
+
+  const totalEstimado = estimacion.reduce((acc, e) => acc + (parseFloat(e.precio) || 0), 0);
+
+  const construirResumenTexto = () => {
+    const lineas = [];
+    lineas.push(`AUDITORÍA DE SEGURIDAD — ${datos.nombre || 'sin nombre'}`);
+    lineas.push('');
+    lineas.push('-- Datos del negocio --');
+    lineas.push(`Nombre: ${datos.nombre}\nTipo: ${datos.tipo}\nDirección: ${datos.direccion}\nEmpleados: ${datos.empleados}\nContacto: ${datos.contacto}`);
+    lineas.push('');
+    lineas.push('-- Alcance / sistemas --');
+    lineas.push(`Sistemas marcados: ${alcance.sistemas.join(', ') || '—'}`);
+    lineas.push(`Detalle sistemas: ${alcance.sistemasDetalle || '—'}`);
+    lineas.push(`Dispositivos: ${alcance.numDispositivos} · Empleados con acceso: ${alcance.numEmpleadosConAcceso}`);
+    lineas.push(`Incidente previo: ${alcance.incidentePrevio || '—'} · Presupuesto orientativo: ${alcance.presupuestoOrientativo || '—'} · Urgencia: ${alcance.urgencia || '—'}`);
+    lineas.push('');
+    lineas.push('-- Accesos y credenciales --');
+    ACCESOS_ITEMS.forEach((i) => lineas.push(`${i.label} ${accesos[i.key] === 'si' ? 'Sí' : accesos[i.key] === 'no' ? 'No' : '(sin responder)'}`));
+    lineas.push('');
+    lineas.push('-- Datos y RGPD --');
+    DATOS_RGPD_ITEMS.forEach((i) => lineas.push(`${i.label} ${datosRgpd[i.key] === 'si' ? 'Sí' : datosRgpd[i.key] === 'no' ? 'No' : '(sin responder)'}`));
+    lineas.push('');
+    lineas.push('-- Hallazgos --');
+    if (hallazgos.length === 0) lineas.push('(ninguno)');
+    hallazgos.forEach((h) => lineas.push(`[${h.nivel}] ${h.area}: ${h.descripcion}`));
+    lineas.push('');
+    lineas.push('-- Estimación de la solución --');
+    if (estimacion.length === 0) lineas.push('(ninguna)');
+    estimacion.forEach((e) => lineas.push(`${e.hallazgoRelacionado} → ${e.solucionPropuesta} · ${e.horas}h · ${e.precio}€ · ${e.tipoPago}`));
+    lineas.push(`TOTAL ESTIMADO: ${totalEstimado.toLocaleString('es-ES')} €`);
+    lineas.push('');
+    lineas.push('-- Plan de mejora --');
+    if (plan.length === 0) lineas.push('(ninguno)');
+    plan.forEach((p) => lineas.push(`${p.accion} — responsable: ${p.responsable}`));
+    lineas.push('');
+    lineas.push('-- Resumen ejecutivo --');
+    lineas.push(resumen.resumenEjecutivo || '—');
+    return lineas.join('\n');
+  };
+
+  const copiarResumen = async () => {
+    try {
+      await navigator.clipboard.writeText(construirResumenTexto());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch (e) {
+      console.error(e);
     }
-    crearBorrador();
-  }, [supabase]);
+  };
 
-  const guardarPaso = useCallback(async (campo, valor) => {
-    setDatos((prev) => ({ ...prev, [campo]: valor }));
-    if (!auditoriaId) return;
-    setGuardando(true);
-
-    const nivel_riesgo = campo === 'matriz_hallazgos' ? calcularNivelRiesgo(valor) : undefined;
-
-    const { error } = await supabase
-      .from('auditorias')
-      .update({ [campo]: valor, ...(nivel_riesgo ? { nivel_riesgo } : {}) })
-      .eq('id', auditoriaId);
-
-    setGuardando(false);
-    if (error) setError('No se pudo guardar el paso. Revisa tu conexión.');
-  }, [auditoriaId, supabase]);
-
-  const generarCodigoCliente = async () => {
-    setGuardando(true);
-    setError(null);
+  const guardar = async () => {
+    setSaving(true);
+    setSaveError(false);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/api/auditoria', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.access_token}`,
+          Authorization: `Bearer ${session?.access_token || ''}`,
         },
-        body: JSON.stringify({ auditoriaId }),
+        body: JSON.stringify({ datos, alcance, accesos, datosRgpd, hallazgos, estimacion, plan, resumen }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      setCodigoGenerado(json.codigo);
-    } catch (err) {
-      setError(err.message || 'No se pudo generar el código.');
+      if (!res.ok) throw new Error('No se pudo guardar la auditoría');
+    } catch (e) {
+      console.error(e);
+      setSaveError(true);
     } finally {
-      setGuardando(false);
+      setSaving(false);
     }
   };
 
-  const paso = PASOS[pasoActual];
-  const nivelRiesgo = calcularNivelRiesgo(datos.matriz_hallazgos);
-
   return (
-    <div className="mx-auto max-w-3xl p-6">
-      <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-stone-800">Auditoría de seguridad</h1>
-        <MedidorRiesgo hallazgos={datos.matriz_hallazgos} />
-      </header>
+    <div className="max-w-2xl mx-auto p-5 space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <h1 className="text-3xl font-semibold text-neutral-900">Auditoría de<br />seguridad</h1>
+        <RiskMeter hallazgos={hallazgos} />
+      </div>
 
-      {/* Progreso */}
-      <nav className="mb-6 flex gap-1.5">
-        {PASOS.map((p, i) => (
-          <button
-            key={p.id}
-            onClick={() => setPasoActual(i)}
-            className={`h-1.5 flex-1 rounded-full transition-colors ${
-              i === pasoActual ? 'bg-stone-800' : i < pasoActual ? 'bg-stone-400' : 'bg-stone-200'
-            }`}
-            aria-label={`Ir a paso ${p.titulo}`}
-          />
-        ))}
-      </nav>
-      <p className="mb-4 text-xs uppercase tracking-wide text-stone-400">
-        Paso {pasoActual + 1} de {PASOS.length} · {paso.titulo}
-        {paso.tipo === 'azul' && (
-          <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-blue-600">Visible para el cliente</span>
-        )}
-      </p>
+      <StepProgress step={step} />
+      <div className="flex items-center justify-between">
+        <p className="text-xs tracking-wide text-neutral-400 uppercase">
+          Paso {step + 1} de {STEPS.length} · {STEPS[step].label}
+        </p>
+        <OwnerBadge owner={STEPS[step].owner} />
+      </div>
 
-      {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      <div className="bg-white border border-neutral-200 rounded-2xl p-6">
+        {step === 0 && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-medium text-neutral-800">Datos del negocio</h2>
+            {[
+              ['nombre', 'Nombre del negocio'],
+              ['tipo', 'Tipo de establecimiento'],
+              ['direccion', 'Dirección'],
+              ['empleados', 'Nº de empleados'],
+              ['contacto', 'Contacto'],
+            ].map(([key, label]) => (
+              <div key={key}>
+                <label className="text-sm text-neutral-600">{label}</label>
+                <input
+                  className="mt-1 w-full border border-neutral-300 rounded-xl px-3 py-2"
+                  value={datos[key]}
+                  onChange={(e) => setDatos({ ...datos, [key]: e.target.value })}
+                />
+              </div>
+            ))}
+          </div>
+        )}
 
-      {codigoGenerado && (
-        <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-          Código para el cliente: <strong className="tracking-widest">{codigoGenerado}</strong>
-          {' '}— compártelo por WhatsApp. Caduca en 72h.
-        </div>
-      )}
+        {step === 1 && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-medium text-neutral-800 mb-1">Sistemas que usáis hoy</h2>
+              <p className="text-sm text-neutral-500 mb-4">Marca los que uséis y, si sabéis el nombre concreto (ej. "Square", "Holded"), anotadlo abajo.</p>
+              <div className="flex flex-wrap gap-3">
+                {SISTEMAS_OPCIONES.map((s) => (
+                  <Chip key={s} label={s} selected={alcance.sistemas.includes(s)} onClick={() => toggleSistema(s)} />
+                ))}
+              </div>
+              <textarea
+                placeholder="Nombre de los sistemas concretos (uno por línea)"
+                className="mt-3 w-full border border-neutral-300 rounded-xl px-3 py-2 text-sm"
+                rows={3}
+                value={alcance.sistemasDetalle}
+                onChange={(e) => setAlcance({ ...alcance, sistemasDetalle: e.target.value })}
+              />
+            </div>
 
-      <div className="rounded-lg border border-stone-200 bg-white p-5">
-        {paso.id === 'datos_negocio' && (
-          <CamposDatosNegocio valor={datos.datos_negocio} onChange={(v) => guardarPaso('datos_negocio', v)} />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-neutral-600">Nº de dispositivos con acceso</label>
+                <input
+                  className="mt-1 w-full border border-neutral-300 rounded-xl px-3 py-2"
+                  value={alcance.numDispositivos}
+                  onChange={(e) => setAlcance({ ...alcance, numDispositivos: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-neutral-600">Nº de empleados con acceso</label>
+                <input
+                  className="mt-1 w-full border border-neutral-300 rounded-xl px-3 py-2"
+                  value={alcance.numEmpleadosConAcceso}
+                  onChange={(e) => setAlcance({ ...alcance, numEmpleadosConAcceso: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <YesNoRow
+              label="¿Habéis tenido algún incidente de seguridad antes (hackeo, robo de datos, ransomware, suplantación)?"
+              value={alcance.incidentePrevio}
+              onChange={(v) => setAlcance({ ...alcance, incidentePrevio: v })}
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-neutral-600">Presupuesto orientativo</label>
+                <input
+                  placeholder="Ej. 500-1000€"
+                  className="mt-1 w-full border border-neutral-300 rounded-xl px-3 py-2"
+                  value={alcance.presupuestoOrientativo}
+                  onChange={(e) => setAlcance({ ...alcance, presupuestoOrientativo: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-neutral-600">Urgencia</label>
+                <select
+                  className="mt-1 w-full border border-neutral-300 rounded-xl px-3 py-2"
+                  value={alcance.urgencia}
+                  onChange={(e) => setAlcance({ ...alcance, urgencia: e.target.value })}
+                >
+                  <option value="">Selecciona</option>
+                  <option value="ya">Lo necesitamos ya</option>
+                  <option value="proximos_meses">Próximos meses</option>
+                  <option value="sin_prisa">Sin prisa</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-neutral-600">Fecha de la visita</label>
+                <input
+                  type="date"
+                  className="mt-1 w-full border border-neutral-300 rounded-xl px-3 py-2"
+                  value={alcance.fechaVisita}
+                  onChange={(e) => setAlcance({ ...alcance, fechaVisita: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-neutral-600">Auditor responsable</label>
+                <input
+                  className="mt-1 w-full border border-neutral-300 rounded-xl px-3 py-2"
+                  value={alcance.auditor}
+                  onChange={(e) => setAlcance({ ...alcance, auditor: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
         )}
-        {paso.id === 'alcance' && (
-          <CamposAlcance valor={datos.alcance} onChange={(v) => guardarPaso('alcance', v)} />
+
+        {step === 2 && (
+          <div>
+            <h2 className="text-lg font-medium text-neutral-800 mb-2">Accesos y credenciales</h2>
+            <p className="text-sm text-neutral-500 mb-4">Cómo se gestionan usuarios, contraseñas y permisos en el software del negocio.</p>
+            {ACCESOS_ITEMS.map((item) => (
+              <YesNoRow
+                key={item.key}
+                label={item.label}
+                value={accesos[item.key]}
+                onChange={(v) => setAccesos({ ...accesos, [item.key]: v })}
+              />
+            ))}
+          </div>
         )}
-        {paso.id === 'operativa' && (
-          <CamposOperativa valor={datos.operativa} onChange={(v) => guardarPaso('operativa', v)} />
+
+        {step === 3 && (
+          <div>
+            <h2 className="text-lg font-medium text-neutral-800 mb-2">Datos, copias de seguridad y RGPD</h2>
+            <p className="text-sm text-neutral-500 mb-4">Dónde y cómo se guardan los datos del negocio y de sus clientes.</p>
+            {DATOS_RGPD_ITEMS.map((item) => (
+              <YesNoRow
+                key={item.key}
+                label={item.label}
+                value={datosRgpd[item.key]}
+                onChange={(v) => setDatosRgpd({ ...datosRgpd, [item.key]: v })}
+              />
+            ))}
+          </div>
         )}
-        {paso.id === 'seguridad' && (
-          <CamposSeguridad valor={datos.seguridad} onChange={(v) => guardarPaso('seguridad', v)} />
+
+        {step === 4 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium text-neutral-800">Matriz de hallazgos</h2>
+              <button onClick={addHallazgo} className="text-sm px-3 py-1.5 rounded-full bg-neutral-900 text-white">
+                + Añadir hallazgo
+              </button>
+            </div>
+            {hallazgos.length === 0 && <p className="text-sm text-neutral-400">Aún no hay hallazgos registrados.</p>}
+            {hallazgos.map((h, i) => (
+              <div key={h.id} className="border border-neutral-200 rounded-xl p-4 space-y-2">
+                <input
+                  placeholder="Área (ej. software de gestión, accesos, backups...)"
+                  className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                  value={h.area}
+                  onChange={(e) => { const c = [...hallazgos]; c[i].area = e.target.value; setHallazgos(c); }}
+                />
+                <textarea
+                  placeholder="Descripción del hallazgo"
+                  className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                  value={h.descripcion}
+                  onChange={(e) => { const c = [...hallazgos]; c[i].descripcion = e.target.value; setHallazgos(c); }}
+                />
+                <div className="flex gap-2">
+                  {['bajo', 'medio', 'alto'].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => { const c = [...hallazgos]; c[i].nivel = n; setHallazgos(c); }}
+                      className={`px-3 py-1 rounded-full text-xs border capitalize ${
+                        h.nivel === n ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-white text-neutral-500 border-neutral-200'
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
-        {paso.id === 'matriz_hallazgos' && (
-          <MatrizHallazgos valor={datos.matriz_hallazgos} onChange={(v) => guardarPaso('matriz_hallazgos', v)} />
+
+        {step === 5 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium text-neutral-800">Estimación de la solución</h2>
+              <button onClick={addEstimacionItem} className="text-sm px-3 py-1.5 rounded-full bg-neutral-900 text-white">
+                + Añadir partida
+              </button>
+            </div>
+            <p className="text-sm text-neutral-500">Por cada hallazgo relevante, qué se propone implementar, cuánto cuesta y si es pago único o mantenimiento.</p>
+
+            {hallazgos.length > 0 && (
+              <div className="text-xs text-neutral-400">
+                Hallazgos disponibles: {hallazgos.map((h) => h.area || 'sin nombre').join(' · ')}
+              </div>
+            )}
+
+            {estimacion.length === 0 && <p className="text-sm text-neutral-400">Aún no hay partidas de estimación.</p>}
+            {estimacion.map((e, i) => (
+              <div key={e.id} className="border border-neutral-200 rounded-xl p-4 space-y-2">
+                <input
+                  placeholder="Hallazgo relacionado"
+                  className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                  value={e.hallazgoRelacionado}
+                  onChange={(ev) => { const c = [...estimacion]; c[i].hallazgoRelacionado = ev.target.value; setEstimacion(c); }}
+                />
+                <input
+                  placeholder="Solución propuesta (ej. gestor de contraseñas + 2FA en correo)"
+                  className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                  value={e.solucionPropuesta}
+                  onChange={(ev) => { const c = [...estimacion]; c[i].solucionPropuesta = ev.target.value; setEstimacion(c); }}
+                />
+                <div className="grid grid-cols-3 gap-2">
+                  <input
+                    placeholder="Horas"
+                    className="border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                    value={e.horas}
+                    onChange={(ev) => { const c = [...estimacion]; c[i].horas = ev.target.value; setEstimacion(c); }}
+                  />
+                  <input
+                    placeholder="Precio (€)"
+                    className="border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                    value={e.precio}
+                    onChange={(ev) => { const c = [...estimacion]; c[i].precio = ev.target.value; setEstimacion(c); }}
+                  />
+                  <select
+                    className="border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                    value={e.tipoPago}
+                    onChange={(ev) => { const c = [...estimacion]; c[i].tipoPago = ev.target.value; setEstimacion(c); }}
+                  >
+                    <option value="unico">Pago único</option>
+                    <option value="recurrente">Recurrente</option>
+                  </select>
+                </div>
+              </div>
+            ))}
+
+            {estimacion.length > 0 && (
+              <div className="flex justify-between items-center pt-2 border-t border-neutral-200">
+                <span className="text-sm text-neutral-500">Total estimado</span>
+                <span className="text-lg font-semibold text-neutral-900">{totalEstimado.toLocaleString('es-ES')} €</span>
+              </div>
+            )}
+          </div>
         )}
-        {paso.id === 'plan_mejora' && (
-          <PlanMejora valor={datos.plan_mejora} onChange={(v) => guardarPaso('plan_mejora', v)} />
+
+        {step === 6 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium text-neutral-800">Plan de mejora / propuesta comercial</h2>
+              <button onClick={addPlanItem} className="text-sm px-3 py-1.5 rounded-full bg-neutral-900 text-white">
+                + Añadir acción
+              </button>
+            </div>
+            {plan.length === 0 && <p className="text-sm text-neutral-400">Aún no hay acciones registradas.</p>}
+            {plan.map((p, i) => (
+              <div key={p.id} className="border border-neutral-200 rounded-xl p-4 space-y-2">
+                <input
+                  placeholder="Acción recomendada (ej. activar 2FA en el correo)"
+                  className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                  value={p.accion}
+                  onChange={(e) => { const c = [...plan]; c[i].accion = e.target.value; setPlan(c); }}
+                />
+                <input
+                  placeholder="Responsable"
+                  className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                  value={p.responsable}
+                  onChange={(e) => { const c = [...plan]; c[i].responsable = e.target.value; setPlan(c); }}
+                />
+              </div>
+            ))}
+          </div>
         )}
-        {paso.id === 'resumen' && (
-          <ResumenYFirma
-            resumen={datos.resumen}
-            firma={datos.firma}
-            nivelRiesgo={nivelRiesgo}
-            onChangeResumen={(v) => guardarPaso('resumen', v)}
-            onChangeFirma={(v) => guardarPaso('firma', v)}
-          />
+
+        {step === 7 && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-medium text-neutral-800">Resumen y firma</h2>
+            <textarea
+              placeholder="Resumen ejecutivo"
+              className="w-full border border-neutral-300 rounded-xl px-3 py-2 text-sm"
+              rows={4}
+              value={resumen.resumenEjecutivo}
+              onChange={(e) => setResumen({ ...resumen, resumenEjecutivo: e.target.value })}
+            />
+            {estimacion.length > 0 && (
+              <div className="bg-neutral-50 rounded-xl p-4 flex justify-between items-center">
+                <span className="text-sm text-neutral-600">Presupuesto total de la propuesta</span>
+                <span className="text-lg font-semibold text-neutral-900">{totalEstimado.toLocaleString('es-ES')} €</span>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                placeholder="Firma del cliente"
+                className="border border-neutral-300 rounded-xl px-3 py-2 text-sm"
+                value={resumen.firmaCliente}
+                onChange={(e) => setResumen({ ...resumen, firmaCliente: e.target.value })}
+              />
+              <input
+                placeholder="Firma Gescobit"
+                className="border border-neutral-300 rounded-xl px-3 py-2 text-sm"
+                value={resumen.firmaGescobit}
+                onChange={(e) => setResumen({ ...resumen, firmaGescobit: e.target.value })}
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={guardar}
+                disabled={saving}
+                className="flex-1 py-3 rounded-xl bg-neutral-900 text-white font-medium disabled:opacity-50"
+              >
+                {saving ? 'Guardando...' : 'Guardar auditoría'}
+              </button>
+              <button
+                onClick={copiarResumen}
+                className="px-4 py-3 rounded-xl border border-neutral-300 text-neutral-700 font-medium"
+              >
+                {copied ? 'Copiado ✓' : 'Copiar resumen'}
+              </button>
+            </div>
+            {saveError && (
+              <p className="text-sm text-red-600">
+                No se pudo guardar en el servidor. Usa "Copiar resumen" para no perder los datos y guárdalos aparte.
+              </p>
+            )}
+          </div>
         )}
       </div>
 
-      <div className="mt-6 flex items-center justify-between">
+      <div className="flex justify-between items-center">
         <button
-          onClick={() => setPasoActual((p) => Math.max(0, p - 1))}
-          disabled={pasoActual === 0}
-          className="rounded-md px-4 py-2 text-sm text-stone-500 disabled:opacity-30"
+          disabled={step === 0}
+          onClick={() => setStep((s) => Math.max(0, s - 1))}
+          className="text-neutral-500 disabled:opacity-30"
         >
           Anterior
         </button>
-
-        <div className="flex items-center gap-3">
-          {guardando && <span className="text-xs text-stone-400">Guardando…</span>}
-          {pasoActual === 2 && !codigoGenerado && (
-            <button
-              onClick={generarCodigoCliente}
-              className="rounded-md border border-stone-300 px-4 py-2 text-sm text-stone-700 hover:bg-stone-50"
-            >
-              Generar código para el cliente
-            </button>
-          )}
+        {step < STEPS.length - 1 && (
           <button
-            onClick={() => setPasoActual((p) => Math.min(PASOS.length - 1, p + 1))}
-            disabled={pasoActual === PASOS.length - 1}
-            className="rounded-md bg-stone-800 px-4 py-2 text-sm text-white disabled:opacity-30"
+            onClick={() => setStep((s) => Math.min(STEPS.length - 1, s + 1))}
+            className="px-6 py-3 rounded-xl bg-neutral-900 text-white font-medium"
           >
             Siguiente
           </button>
-        </div>
+        )}
       </div>
-    </div>
-  );
-}
-
-// ============================================================
-// Modo cliente — página única, entra con código de 6 caracteres
-// ============================================================
-function FormularioCliente() {
-  const [codigo, setCodigo] = useState('');
-  const [estado, setEstado] = useState('inicio'); // inicio | cargando | formulario | enviado | error
-  const [errorMsg, setErrorMsg] = useState('');
-  const [respuestas, setRespuestas] = useState({ datos_negocio: {}, operativa: {}, seguridad: {} });
-
-  const entrarConCodigo = async () => {
-    setEstado('cargando');
-    setErrorMsg('');
-    try {
-      const res = await fetch(`/api/auditoria/cliente?codigo=${encodeURIComponent(codigo)}`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      setRespuestas({
-        datos_negocio: json.datos_negocio || {},
-        operativa: json.operativa || {},
-        seguridad: json.seguridad || {},
-      });
-      setEstado('formulario');
-    } catch (err) {
-      setErrorMsg(err.message || 'Código no válido.');
-      setEstado('inicio');
-    }
-  };
-
-  const enviar = async () => {
-    setEstado('cargando');
-    try {
-      const res = await fetch('/api/auditoria/cliente', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ codigo, ...respuestas }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      setEstado('enviado');
-    } catch (err) {
-      setErrorMsg(err.message || 'No se pudo enviar.');
-      setEstado('formulario');
-    }
-  };
-
-  if (estado === 'inicio' || estado === 'cargando') {
-    return (
-      <div className="mx-auto mt-24 max-w-sm px-6 text-center">
-        <h1 className="mb-2 text-lg font-semibold text-stone-800">Cuestionario de auditoría</h1>
-        <p className="mb-6 text-sm text-stone-500">Introduce el código de 6 caracteres que te ha enviado Gescobit.</p>
-        <input
-          value={codigo}
-          onChange={(e) => setCodigo(e.target.value.toUpperCase())}
-          maxLength={6}
-          placeholder="AB12CD"
-          className="mb-3 w-full rounded-md border border-stone-300 px-3 py-2 text-center text-lg tracking-widest"
-        />
-        {errorMsg && <p className="mb-3 text-sm text-red-600">{errorMsg}</p>}
-        <button
-          onClick={entrarConCodigo}
-          disabled={codigo.length !== 6 || estado === 'cargando'}
-          className="w-full rounded-md bg-stone-800 px-4 py-2 text-sm text-white disabled:opacity-40"
-        >
-          {estado === 'cargando' ? 'Comprobando…' : 'Continuar'}
-        </button>
-      </div>
-    );
-  }
-
-  if (estado === 'enviado') {
-    return (
-      <div className="mx-auto mt-24 max-w-sm px-6 text-center">
-        <h1 className="mb-2 text-lg font-semibold text-stone-800">Gracias</h1>
-        <p className="text-sm text-stone-500">Hemos recibido tus respuestas. Gescobit se pondrá en contacto contigo.</p>
-      </div>
-    );
-  }
-
-  // formulario — solo campos azules: datos_negocio, operativa, seguridad
-  return (
-    <div className="mx-auto max-w-lg p-6">
-      <h1 className="mb-4 text-lg font-semibold text-stone-800">Cuestionario de auditoría</h1>
-      {errorMsg && <p className="mb-3 text-sm text-red-600">{errorMsg}</p>}
-      <div className="space-y-6">
-        <section className="rounded-lg border border-stone-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-stone-700">Datos del negocio</h2>
-          <CamposDatosNegocio
-            valor={respuestas.datos_negocio}
-            onChange={(v) => setRespuestas((prev) => ({ ...prev, datos_negocio: v }))}
-          />
-        </section>
-        <section className="rounded-lg border border-stone-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-stone-700">Situación operativa</h2>
-          <CamposOperativa
-            valor={respuestas.operativa}
-            onChange={(v) => setRespuestas((prev) => ({ ...prev, operativa: v }))}
-          />
-        </section>
-        <section className="rounded-lg border border-stone-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-stone-700">Situación de seguridad</h2>
-          <CamposSeguridad
-            valor={respuestas.seguridad}
-            onChange={(v) => setRespuestas((prev) => ({ ...prev, seguridad: v }))}
-          />
-        </section>
-      </div>
-      <button
-        onClick={enviar}
-        disabled={estado === 'cargando'}
-        className="mt-6 w-full rounded-md bg-stone-800 px-4 py-2 text-sm text-white disabled:opacity-40"
-      >
-        {estado === 'cargando' ? 'Enviando…' : 'Enviar respuestas'}
-      </button>
-    </div>
-  );
-}
-
-// ============================================================
-// Punto de entrada — decide el modo según si hay ?codigo_inicial= en la URL
-// ============================================================
-export default function AuditoriaSeguridadTGH() {
-  const esModoCliente = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    return new URLSearchParams(window.location.search).has('codigo_inicial');
-  }, []);
-
-  return (
-    <div className="min-h-screen bg-stone-50">
-      {esModoCliente ? <FormularioCliente /> : <AsistenteGescobit />}
     </div>
   );
 }

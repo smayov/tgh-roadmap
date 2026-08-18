@@ -1,12 +1,10 @@
 // app/api/auditoria/route.js
-// Uso de Gescobit (autenticado). El cliente envía su token de sesión en
-// Authorization: Bearer <token>; lo validamos con el cliente de servicio
-// y luego filtramos explícitamente por created_by, ya que este cliente
-// admin salta RLS (mismo patrón que lib/auditoria.js).
+// Guarda la auditoría completa (los 8 pasos) rellenada por Gescobit.
+// El cliente envía su token de sesión en Authorization: Bearer <token>.
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { generarCodigoUnico } from '@/lib/auditoria';
+import { guardarAuditoria } from '@/lib/auditoria';
 
 function supabaseAdmin() {
   return createClient(
@@ -17,7 +15,8 @@ function supabaseAdmin() {
 
 // POST /api/auditoria
 // headers: Authorization: Bearer <access_token de la sesión del usuario>
-// body: { auditoriaId, horasValidez? } — por defecto 72h
+// body: { auditoriaId?, datos, alcance, accesos, datosRgpd, hallazgos, estimacion, plan, resumen }
+// auditoriaId es opcional: si no se manda, se crea una auditoría nueva.
 export async function POST(request) {
   const token = (request.headers.get('authorization') || '').replace('Bearer ', '');
   if (!token) {
@@ -31,33 +30,15 @@ export async function POST(request) {
   }
 
   const body = await request.json().catch(() => null);
-  if (!body?.auditoriaId) {
-    return NextResponse.json({ error: 'Falta el id de la auditoría.' }, { status: 400 });
+  if (!body) {
+    return NextResponse.json({ error: 'Cuerpo de la petición inválido.' }, { status: 400 });
   }
 
-  const horasValidez = body.horasValidez || 72;
-
   try {
-    const codigo = await generarCodigoUnico();
-    const expira = new Date(Date.now() + horasValidez * 60 * 60 * 1000).toISOString();
-
-    const { data, error } = await admin
-      .from('auditorias')
-      .update({
-        codigo_cliente: codigo,
-        codigo_expira_en: expira,
-        estado: 'enviado_cliente',
-      })
-      .eq('id', body.auditoriaId)
-      .eq('created_by', user.id) // clave: el cliente admin salta RLS, así que hay que comprobar la propiedad a mano
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return NextResponse.json({ codigo: data.codigo_cliente, expira: data.codigo_expira_en });
+    const auditoria = await guardarAuditoria(user.id, body.auditoriaId, body);
+    return NextResponse.json(auditoria);
   } catch (err) {
-    console.error('[auditoria][generar-codigo]', err);
-    return NextResponse.json({ error: 'No se pudo generar el código.' }, { status: 500 });
+    console.error('[auditoria][guardar]', err);
+    return NextResponse.json({ error: 'No se pudo guardar la auditoría.' }, { status: 500 });
   }
 }

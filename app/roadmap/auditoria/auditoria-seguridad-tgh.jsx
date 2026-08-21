@@ -631,21 +631,7 @@ const descargarPDF = async () => {
                 onChange={(e) => setResumen({ ...resumen, firmaGescobit: e.target.value })}
               />
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={guardar}
-                disabled={saving}
-                className="flex-1 py-3 rounded-xl bg-neutral-900 text-white font-medium disabled:opacity-50"
-              >
-                {saving ? 'Guardando...' : 'Guardar auditoría'}
-              </button>
-              <button
-                onClick={copiarResumen}
-                className="px-4 py-3 rounded-xl border border-neutral-300 text-neutral-700 font-medium"
-              >
-                {copied ? 'Copiado ✓' : 'Copiar resumen'}
-              </button>
-            </div>
+            
             <div className="flex gap-3">
              <button onClick={guardar} disabled={saving} className="flex-1 py-3 rounded-xl bg-neutral-900 text-white font-medium disabled:opacity-50">
                 {saving ? 'Guardando...' : 'Guardar auditoría'}

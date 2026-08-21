@@ -274,8 +274,9 @@ export default function AuditoriaSeguridadTGH() {
 const descargarPDF = async () => {
   setGenerandoPDF(true);
   try {
-    const { descargarAuditoriaPDF } = await import('../../../lib/pdfAuditoria');
-    await descargarAuditoriaPDF({
+    const mod = await import('../../../lib/pdfAuditoria');
+    console.log('Módulo importado:', mod);
+    await mod.descargarAuditoriaPDF({
       datos, alcance, accesos, datosRgpd, hallazgos, estimacion, plan, resumen,
       ACCESOS_ITEMS, DATOS_RGPD_ITEMS, totalEstimado,
     });

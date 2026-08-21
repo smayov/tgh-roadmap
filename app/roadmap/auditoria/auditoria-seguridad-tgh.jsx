@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { supabase } from '../../supabaseClient';
+import { descargarAuditoriaPDF } from '../../../lib/pdfAuditoria'; // ajusta la ruta relativa a tu estructura
+
 
 /**
  * Auditoría de Seguridad — Gescobit
@@ -174,6 +176,8 @@ export default function AuditoriaSeguridadTGH() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [generandoPDF, setGenerandoPDF] = useState(false); 
+
 
   // CLIENTE
   const [datos, setDatos] = useState({ nombre: '', tipo: '', direccion: '', empleados: '', contacto: '' });
@@ -267,7 +271,19 @@ export default function AuditoriaSeguridadTGH() {
       console.error(e);
     }
   };
-
+const descargarPDF = async () => {
+  setGenerandoPDF(true);
+  try {
+    await descargarAuditoriaPDF({
+      datos, alcance, accesos, datosRgpd, hallazgos, estimacion, plan, resumen,
+      ACCESOS_ITEMS, DATOS_RGPD_ITEMS, totalEstimado,
+    });
+  } catch (e) {
+    console.error(e);
+  } finally {
+    setGenerandoPDF(false);
+  }
+};
   const guardar = async () => {
     setSaving(true);
     setSaveError(false);
@@ -627,6 +643,17 @@ export default function AuditoriaSeguridadTGH() {
                 className="px-4 py-3 rounded-xl border border-neutral-300 text-neutral-700 font-medium"
               >
                 {copied ? 'Copiado ✓' : 'Copiar resumen'}
+              </button>
+            </div>
+            <div className="flex gap-3">
+             <button onClick={guardar} disabled={saving} className="flex-1 py-3 rounded-xl bg-neutral-900 text-white font-medium disabled:opacity-50">
+                {saving ? 'Guardando...' : 'Guardar auditoría'}
+              </button>
+              <button onClick={copiarResumen} className="px-4 py-3 rounded-xl border border-neutral-300 text-neutral-700 font-medium">
+                {copied ? 'Copiado ✓' : 'Copiar resumen'}
+              </button>
+              <button onClick={descargarPDF} disabled={generandoPDF} className="px-4 py-3 rounded-xl border border-neutral-300 text-neutral-700 font-medium disabled:opacity-50">
+                {generandoPDF ? 'Generando...' : 'Descargar PDF'}
               </button>
             </div>
             {saveError && (

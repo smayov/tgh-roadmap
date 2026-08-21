@@ -275,8 +275,12 @@ const descargarPDF = async () => {
   setGenerandoPDF(true);
   try {
     const mod = await import('../../../lib/pdfAuditoria');
-    console.log('Módulo importado:', mod);
-    await mod.descargarAuditoriaPDF({
+    const fn = mod.descargarAuditoriaPDF || mod.default?.descargarAuditoriaPDF;
+    if (!fn) {
+      console.error('No se encontró descargarAuditoriaPDF en el módulo:', mod);
+      return;
+    }
+    await fn({
       datos, alcance, accesos, datosRgpd, hallazgos, estimacion, plan, resumen,
       ACCESOS_ITEMS, DATOS_RGPD_ITEMS, totalEstimado,
     });

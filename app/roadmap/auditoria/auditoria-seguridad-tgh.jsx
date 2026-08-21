@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { supabase } from '../../supabaseClient';
+import dynamic from 'next/dynamic';
 
 
 
@@ -23,6 +24,7 @@ import { supabase } from '../../supabaseClient';
  *  7. Plan de mejora / propuesta  — GESCOBIT
  *  8. Resumen y firma             — GESCOBIT
  */
+
 
 const STEPS = [
   { label: 'Datos', owner: 'cliente' },
@@ -170,13 +172,20 @@ function YesNoRow({ label, value, onChange }) {
     </div>
   );
 }
-
+const DescargarPDFBoton = dynamic(() => import('./DescargarPDFBoton'), {
+  ssr: false,
+  loading: () => (
+    <button disabled className="px-4 py-3 rounded-xl border border-neutral-300 text-neutral-400 font-medium">
+      Cargando...
+    </button>
+  ),
+});
 export default function AuditoriaSeguridadTGH() {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [generandoPDF, setGenerandoPDF] = useState(false); 
+ 
 
 
   // CLIENTE
@@ -271,25 +280,7 @@ export default function AuditoriaSeguridadTGH() {
       console.error(e);
     }
   };
-const descargarPDF = async () => {
-  setGenerandoPDF(true);
-  try {
-    const mod = await import('../../../lib/pdfAuditoria');
-    const fn = mod.descargarAuditoriaPDF || mod.default?.descargarAuditoriaPDF;
-    if (!fn) {
-      console.error('No se encontró descargarAuditoriaPDF en el módulo:', mod);
-      return;
-    }
-    await fn({
-      datos, alcance, accesos, datosRgpd, hallazgos, estimacion, plan, resumen,
-      ACCESOS_ITEMS, DATOS_RGPD_ITEMS, totalEstimado,
-    });
-  } catch (e) {
-    console.error(e);
-  } finally {
-    setGenerandoPDF(false);
-  }
-};
+
   const guardar = async () => {
     setSaving(true);
     setSaveError(false);
@@ -644,9 +635,11 @@ const descargarPDF = async () => {
               <button onClick={copiarResumen} className="px-4 py-3 rounded-xl border border-neutral-300 text-neutral-700 font-medium">
                 {copied ? 'Copiado ✓' : 'Copiar resumen'}
               </button>
-              <button onClick={descargarPDF} disabled={generandoPDF} className="px-4 py-3 rounded-xl border border-neutral-300 text-neutral-700 font-medium disabled:opacity-50">
-                {generandoPDF ? 'Generando...' : 'Descargar PDF'}
-              </button>
+              <DescargarPDFBoton
+  datos={datos} alcance={alcance} accesos={accesos} datosRgpd={datosRgpd}
+  hallazgos={hallazgos} estimacion={estimacion} plan={plan} resumen={resumen}
+  ACCESOS_ITEMS={ACCESOS_ITEMS} DATOS_RGPD_ITEMS={DATOS_RGPD_ITEMS} totalEstimado={totalEstimado}
+/>
             </div>
             {saveError && (
               <p className="text-sm text-red-600">

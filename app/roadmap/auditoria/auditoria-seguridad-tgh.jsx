@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { supabase } from '../../supabaseClient';
-import { descargarAuditoriaPDF } from '../../../lib/pdfAuditoria'; // ajusta la ruta relativa a tu estructura
+
 
 
 /**
@@ -274,6 +274,7 @@ export default function AuditoriaSeguridadTGH() {
 const descargarPDF = async () => {
   setGenerandoPDF(true);
   try {
+    const { descargarAuditoriaPDF } = await import('../../../lib/pdfAuditoria');
     await descargarAuditoriaPDF({
       datos, alcance, accesos, datosRgpd, hallazgos, estimacion, plan, resumen,
       ACCESOS_ITEMS, DATOS_RGPD_ITEMS, totalEstimado,

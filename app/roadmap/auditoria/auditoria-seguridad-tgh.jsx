@@ -48,6 +48,10 @@ const ACCESOS_ITEMS = [
   { key: 'doble_factor', label: '¿Los accesos críticos (banca, gestión, email) tienen doble factor (2FA)?' },
   { key: 'permisos_por_rol', label: '¿Los permisos están limitados por rol (no todos ven/editan todo)?' },
   { key: 'baja_accesos', label: '¿Se revocan los accesos cuando un empleado deja el puesto?' },
+  { key: 'logs_acceso', label: '¿El TPV/software de gestión registra logs de acceso (usuario, fecha, acción)?' },
+  { key: 'logs_retencion', label: '¿Se conservan esos logs durante un período definido?' },
+  { key: 'logs_rgpd', label: '¿Hay registro de accesos a datos de clientes diferenciado del log general?' },
+  { key: 'logs_consulta', label: '¿Está definido quién puede consultar esos logs si hace falta investigar algo?' },
 ];
 
 const DATOS_RGPD_ITEMS = [
@@ -133,22 +137,31 @@ function Chip({ label, selected, onClick }) {
 }
 
 function YesNoRow({ label, value, onChange }) {
+  const opciones = [
+    { key: 'si', label: 'Sí' },
+    { key: 'no', label: 'No' },
+    { key: 'no_se', label: 'No lo sé' },
+  ];
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 py-3 border-b border-neutral-100 last:border-0">
       <p className="text-sm text-neutral-700 min-w-0">{label}</p>
-      <div className="flex gap-2 shrink-0">
-        {['si', 'no'].map((opt) => (
+      <div className="flex flex-wrap gap-2 shrink-0">
+        {opciones.map((opt) => (
           <button
-            key={opt}
+            key={opt.key}
             type="button"
-            onClick={() => onChange(opt)}
+            onClick={() => onChange(opt.key)}
             className={`px-3 py-1.5 rounded-full text-sm border ${
-              value === opt
-                ? opt === 'si' ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-red-50 text-red-700 border-red-200'
+              value === opt.key
+                ? opt.key === 'si'
+                  ? 'bg-neutral-900 text-white border-neutral-900'
+                  : opt.key === 'no'
+                  ? 'bg-red-50 text-red-700 border-red-200'
+                  : 'bg-amber-50 text-amber-700 border-amber-200'
                 : 'bg-white text-neutral-500 border-neutral-200'
             }`}
           >
-            {opt === 'si' ? 'Sí' : 'No'}
+            {opt.label}
           </button>
         ))}
       </div>
@@ -222,10 +235,10 @@ export default function AuditoriaSeguridadTGH() {
     lineas.push(`Incidente previo: ${alcance.incidentePrevio || '—'} · Presupuesto orientativo: ${alcance.presupuestoOrientativo || '—'} · Urgencia: ${alcance.urgencia || '—'}`);
     lineas.push('');
     lineas.push('-- Accesos y credenciales --');
-    ACCESOS_ITEMS.forEach((i) => lineas.push(`${i.label} ${accesos[i.key] === 'si' ? 'Sí' : accesos[i.key] === 'no' ? 'No' : '(sin responder)'}`));
+    ACCESOS_ITEMS.forEach((i) => lineas.push(`${i.label} ${accesos[i.key] === 'si' ? 'Sí' : accesos[i.key] === 'no' ? 'No' : accesos[i.key] === 'no_se' ? 'No lo sé' : '(sin responder)'}`));
     lineas.push('');
     lineas.push('-- Datos y RGPD --');
-    DATOS_RGPD_ITEMS.forEach((i) => lineas.push(`${i.label} ${datosRgpd[i.key] === 'si' ? 'Sí' : datosRgpd[i.key] === 'no' ? 'No' : '(sin responder)'}`));
+    DATOS_RGPD_ITEMS.forEach((i) => lineas.push(`${i.label} ${datosRgpd[i.key] === 'si' ? 'Sí' : datosRgpd[i.key] === 'no' ? 'No' : datosRgpd[i.key] === 'no_se' ? 'No lo sé' : '(sin responder)'}`));
     lineas.push('');
     lineas.push('-- Hallazgos --');
     if (hallazgos.length === 0) lineas.push('(ninguno)');

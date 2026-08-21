@@ -163,7 +163,7 @@ function YesNoRow({ label, value, onChange }) {
                   ? 'bg-red-50 text-red-700 border-red-200'
                   : 'bg-amber-50 text-amber-700 border-amber-200'
                 : 'bg-white text-neutral-500 border-neutral-200'
-            }`}
+                         }`}
           >
             {opt.label}
           </button>

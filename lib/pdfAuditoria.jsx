@@ -21,7 +21,7 @@ const styles = StyleSheet.create({
   label: { width: '55%', color: '#404040', paddingRight: 8 },
   value: { width: '45%', fontWeight: 700, color: '#1a1a1a' },
   gridRow: { flexDirection: 'row', marginBottom: 3 },
-  gridLabel: { width: '35%', color: '#737373' },
+  gridLabel: { width: '35%', color: '#737373', paddingRight: 10 },
   gridValue: { width: '65%', color: '#1a1a1a' },
   hallazgoBox: { marginBottom: 8, padding: 8, backgroundColor: '#fafafa', borderRadius: 4, borderLeft: '3 solid #a3a3a3' },
   hallazgoBoxAlto: { borderLeftColor: '#dc2626' },
@@ -48,6 +48,7 @@ const styles = StyleSheet.create({
   firmaLine: { borderTop: '0.5 solid #a3a3a3', marginTop: 30, paddingTop: 4 },
   firmaLabel: { fontSize: 8, color: '#737373', textTransform: 'uppercase' },
   footer: { position: 'absolute', bottom: 24, left: 40, right: 40, flexDirection: 'row', justifyContent: 'space-between', fontSize: 8, color: '#a3a3a3', borderTop: '0.5 solid #e5e5e5', paddingTop: 8 },
+  riesgoNota: { fontSize: 8, color: '#dc2626', fontStyle: 'italic', marginTop: 2, marginBottom: 4,},
 });
 
 const NIVEL_RIESGO = { alto: 3, medio: 2, bajo: 1 };
@@ -116,23 +117,31 @@ export function AuditoriaPDF({ datos, alcance, accesos, datosRgpd, hallazgos, es
             <Text style={styles.gridValue}>{SINO(alcance.incidentePrevio)}</Text>
           </View>
         </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Accesos y credenciales</Text>
-          {ACCESOS_ITEMS.map((item) => (
-            <View style={styles.gridRow} key={item.key}>
-              <Text style={styles.gridLabel}>{item.label}</Text>
-              <Text style={styles.gridValue}>{SINO(accesos[item.key])}</Text>
-            </View>
-          ))}
-        </View>
-
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Accesos y credenciales</Text>
+            {ACCESOS_ITEMS.map((item) => (
+              <View key={item.key}>
+                <View style={styles.gridRow}>
+                  <Text style={styles.gridLabel}>{item.label}</Text>
+                  <Text style={styles.gridValue}>{SINO(accesos[item.key])}</Text>
+                </View>
+                {accesos[item.key] === 'no' && item.riesgo && (
+                  <Text style={styles.riesgoNota}>⚠ {item.riesgo}</Text>
+                )}
+              </View>
+            ))}
+          </View>
         <View style={styles.section} break>
           <Text style={styles.sectionTitle}>Datos y RGPD</Text>
           {DATOS_RGPD_ITEMS.map((item) => (
-            <View style={styles.gridRow} key={item.key}>
-              <Text style={styles.gridLabel}>{item.label}</Text>
-              <Text style={styles.gridValue}>{SINO(datosRgpd[item.key])}</Text>
+            <View key={item.key}>
+              <View style={styles.gridRow}>
+                <Text style={styles.gridLabel}>{item.label}</Text>
+                <Text style={styles.gridValue}>{SINO(datosRgpd[item.key])}</Text>
+              </View>
+              {datosRgpd[item.key] === 'no' && item.riesgo && (
+                <Text style={styles.riesgoNota}>⚠ {item.riesgo}</Text>
+              )}
             </View>
           ))}
         </View>

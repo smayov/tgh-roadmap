@@ -49,23 +49,23 @@ const SISTEMAS_OPCIONES = [
 ];
 
 const ACCESOS_ITEMS = [
-  { key: 'contrasenas_unicas', label: '¿Cada empleado tiene su propio usuario y contraseña (no compartidos)?' },
-  { key: 'politica_contrasenas', label: '¿Existe una política mínima de contraseñas (longitud, cambio periódico)?' },
-  { key: 'doble_factor', label: '¿Los accesos críticos (banca, gestión, email) tienen doble factor (2FA)?' },
-  { key: 'permisos_por_rol', label: '¿Los permisos están limitados por rol (no todos ven/editan todo)?' },
-  { key: 'baja_accesos', label: '¿Se revocan los accesos cuando un empleado deja el puesto?' },
-  { key: 'logs_acceso', label: '¿El TPV/software de gestión registra logs de acceso (usuario, fecha, acción)?' },
-  { key: 'logs_retencion', label: '¿Se conservan esos logs durante un período definido?' },
-  { key: 'logs_rgpd', label: '¿Hay registro de accesos a datos de clientes diferenciado del log general?' },
-  { key: 'logs_consulta', label: '¿Está definido quién puede consultar esos logs si hace falta investigar algo?' },
+  { key: 'contrasenas_unicas', label: '¿Cada empleado tiene su propio usuario y contraseña (no compartidos)?', riesgo: 'Sin usuarios individuales, no se puede identificar quién hizo qué ante un error o fuga, y revocar el acceso de una persona obliga a cambiar la contraseña de todos.' },
+  { key: 'politica_contrasenas', label: '¿Existe una política mínima de contraseñas (longitud, cambio periódico)?', riesgo: 'Las contraseñas débiles o nunca renovadas son la puerta de entrada más común en ataques de fuerza bruta o tras una filtración de datos.' },
+  { key: 'doble_factor', label: '¿Los accesos críticos (banca, gestión, email) tienen doble factor (2FA)?', riesgo: 'Si la contraseña se filtra o se roba (phishing), no hay ninguna barrera adicional que impida el acceso al atacante.' },
+  { key: 'permisos_por_rol', label: '¿Los permisos están limitados por rol (no todos ven/editan todo)?', riesgo: 'Cualquier empleado puede ver o modificar datos que no le corresponden, ampliando el daño posible de un error humano o una cuenta comprometida.' },
+  { key: 'baja_accesos', label: '¿Se revocan los accesos cuando un empleado deja el puesto?', riesgo: 'Un ex-empleado puede seguir entrando a los sistemas del negocio después de marcharse, sin que nadie lo note.' },
+  { key: 'logs_acceso', label: '¿El TPV/software de gestión registra logs de acceso (usuario, fecha, acción)?', riesgo: 'Ante un incidente de seguridad, no hay forma de reconstruir qué pasó, quién lo hizo ni cuándo.' },
+  { key: 'logs_retencion', label: '¿Se conservan esos logs durante un período definido?', riesgo: 'Aunque existan registros, si se borran demasiado pronto no sirven para investigar incidentes detectados con retraso.' },
+  { key: 'logs_rgpd', label: '¿Hay registro de accesos a datos de clientes diferenciado del log general?', riesgo: 'No se puede demostrar ante una inspección o reclamación quién accedió a los datos personales de un cliente concreto.' },
+  { key: 'logs_consulta', label: '¿Está definido quién puede consultar esos logs si hace falta investigar algo?', riesgo: 'Sin un responsable claro, los registros existen pero nadie los revisa ni actúa cuando hay algo anómalo.' },
 ];
 
 const DATOS_RGPD_ITEMS = [
-  { key: 'copias_seguridad', label: '¿Existen copias de seguridad periódicas de los datos del negocio?' },
-  { key: 'copias_cifradas', label: '¿Esas copias están cifradas o en un proveedor con garantías (nube reconocida)?' },
-  { key: 'alojamiento_datos', label: '¿Se sabe dónde se alojan los datos (servidor propio, nube, proveedor del software)?' },
-  { key: 'consentimiento_web', label: '¿La web/app de reservas pide consentimiento explícito para tratar datos del cliente?' },
-  { key: 'politica_privacidad', label: '¿Existe política de privacidad visible y actualizada?' },
+  { key: 'copias_seguridad', label: '¿Existen copias de seguridad periódicas de los datos del negocio?', riesgo: 'Un fallo técnico, un ataque de ransomware o un borrado accidental puede hacer perder para siempre los datos del negocio (reservas, contabilidad, clientes).' },
+  { key: 'copias_cifradas', label: '¿Esas copias están cifradas o en un proveedor con garantías (nube reconocida)?', riesgo: 'Si las copias caen en manos equivocadas (robo del disco, acceso no autorizado), los datos quedan expuestos igualmente aunque exista backup.' },
+  { key: 'alojamiento_datos', label: '¿Se sabe dónde se alojan los datos (servidor propio, nube, proveedor del software)?', riesgo: 'Sin saber dónde están los datos, es imposible garantizar su seguridad o responder correctamente ante una inspección o un cliente que ejerza sus derechos RGPD.' },
+  { key: 'consentimiento_web', label: '¿La web/app de reservas pide consentimiento explícito para tratar datos del cliente?', riesgo: 'Recoger datos personales sin consentimiento explícito es una infracción directa del RGPD, sancionable por la AEPD.' },
+  { key: 'politica_privacidad', label: '¿Existe política de privacidad visible y actualizada?', riesgo: 'Es una obligación legal básica del RGPD; su ausencia es de las primeras cosas que revisa la AEPD ante cualquier reclamación.' },
 ];
 
 const NIVEL_RIESGO = { alto: 3, medio: 2, bajo: 1 };
@@ -137,35 +137,40 @@ function Chip({ label, selected, onClick }) {
   );
 }
 
-function YesNoRow({ label, value, onChange }) {
+function YesNoRow({ label, value, onChange, riesgo }) {
   const opciones = [
     { key: 'si', label: 'Sí' },
     { key: 'no', label: 'No' },
     { key: 'no_se', label: 'No lo sé' },
   ];
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 py-3 border-b border-neutral-100 last:border-0">
-      <p className="text-sm text-neutral-700 min-w-0">{label}</p>
-      <div className="flex flex-wrap gap-2 shrink-0">
-        {opciones.map((opt) => (
-          <button
-            key={opt.key}
-            type="button"
-            onClick={() => onChange(opt.key)}
-            className={`px-3 py-1.5 rounded-full text-sm border ${
-              value === opt.key
-                ? opt.key === 'si'
-                  ? 'bg-neutral-900 text-white border-neutral-900'
-                  : opt.key === 'no'
-                  ? 'bg-red-50 text-red-700 border-red-200'
-                  : 'bg-amber-50 text-amber-700 border-amber-200'
-                : 'bg-white text-neutral-500 border-neutral-200'
-                         }`}
-          >
-            {opt.label}
-          </button>
-        ))}
+    <div className="py-3 border-b border-neutral-100 last:border-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+        <p className="text-sm text-neutral-700 min-w-0">{label}</p>
+        <div className="flex flex-wrap gap-2 shrink-0">
+          {opciones.map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => onChange(opt.key)}
+              className={`px-3 py-1.5 rounded-full text-sm border ${
+                value === opt.key
+                  ? opt.key === 'si'
+                    ? 'bg-neutral-900 text-white border-neutral-900'
+                    : opt.key === 'no'
+                    ? 'bg-red-50 text-red-700 border-red-200'
+                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                  : 'bg-white text-neutral-500 border-neutral-200'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
+      {value === 'no' && riesgo && (
+        <p className="mt-2 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">⚠ {riesgo}</p>
+      )}
     </div>
   );
 }
@@ -426,14 +431,15 @@ export default function AuditoriaSeguridadTGH() {
           <div>
             <h2 className="text-lg font-medium text-neutral-800 mb-2">Accesos y credenciales</h2>
             <p className="text-sm text-neutral-500 mb-4">Cómo se gestionan usuarios, contraseñas y permisos en el software del negocio.</p>
-            {ACCESOS_ITEMS.map((item) => (
-              <YesNoRow
-                key={item.key}
-                label={item.label}
-                value={accesos[item.key]}
-                onChange={(v) => setAccesos({ ...accesos, [item.key]: v })}
-              />
-            ))}
+       {ACCESOS_ITEMS.map((item) => (
+         <YesNoRow
+    key={item.key}
+    label={item.label}
+    value={accesos[item.key]}
+    onChange={(v) => setAccesos({ ...accesos, [item.key]: v })}
+    riesgo={item.riesgo}
+         />
+        ))}
           </div>
         )}
 

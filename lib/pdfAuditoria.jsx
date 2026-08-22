@@ -1,4 +1,5 @@
 import { Document, Page, Text, View, StyleSheet, Font, pdf } from '@react-pdf/renderer';
+import { calcularRiesgo } from './riesgoAuditoria';
 
 /**
  * PDF de la Auditoría de Seguridad — Gescobit
@@ -64,9 +65,7 @@ function Footer({ nombreNegocio }) {
 }
 
 export function AuditoriaPDF({ datos, alcance, accesos, datosRgpd, hallazgos, estimacion, plan, resumen, ACCESOS_ITEMS, DATOS_RGPD_ITEMS, totalEstimado }) {
-  const score = hallazgos.reduce((acc, h) => acc + (NIVEL_RIESGO[h.nivel] || 0), 0);
-  const riesgoLabel = hallazgos.length === 0 ? 'Sin datos' : score >= 12 ? 'Riesgo alto' : score >= 6 ? 'Riesgo medio' : 'Riesgo bajo';
-  const riesgoColor = score >= 12 ? '#dc2626' : score >= 6 ? '#d97706' : '#16a34a';
+  const { score, label: riesgoLabel, color: riesgoColor } = calcularRiesgo({ accesos, datosRgpd, ACCESOS_ITEMS, DATOS_RGPD_ITEMS });
   const fecha = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
 
   return (

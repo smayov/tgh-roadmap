@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { supabase } from '../../supabaseClient';
 import { descargarAuditoriaPDF } from '../../../lib/pdfAuditoria';
+import { calcularRiesgo } from '../../../lib/riesgoAuditoria';
 
 
 
@@ -95,13 +96,8 @@ function StepProgress({ step }) {
   );
 }
 
-function RiskMeter({ hallazgos }) {
-  const score = hallazgos.reduce((acc, h) => acc + (NIVEL_RIESGO[h.nivel] || 0), 0);
-  const label = hallazgos.length === 0
-    ? 'Sin datos aún'
-    : score >= 12 ? 'Riesgo alto'
-    : score >= 6 ? 'Riesgo medio'
-    : 'Riesgo bajo';
+function RiskMeter({ accesos, datosRgpd }) {
+  const { score, label, color } = calcularRiesgo({ accesos, datosRgpd, ACCESOS_ITEMS, DATOS_RGPD_ITEMS });
 
   return (
     <div className="border border-neutral-200 rounded-2xl p-5 flex items-center gap-4 bg-white">
@@ -109,9 +105,9 @@ function RiskMeter({ hallazgos }) {
         <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
           <circle cx="32" cy="32" r="26" stroke="#e5e0d8" strokeWidth="6" fill="none" />
           <circle
-            cx="32" cy="32" r="26" stroke="#1a1a1a" strokeWidth="6" fill="none"
+            cx="32" cy="32" r="26" stroke={color} strokeWidth="6" fill="none"
             strokeDasharray={2 * Math.PI * 26}
-            strokeDashoffset={2 * Math.PI * 26 * (1 - Math.min(score / 15, 1))}
+            strokeDashoffset={2 * Math.PI * 26 * (1 - Math.min(score / 10, 1))}
             strokeLinecap="round"
           />
         </svg>
@@ -119,7 +115,7 @@ function RiskMeter({ hallazgos }) {
       </div>
       <div className="min-w-0">
         <p className="text-xs tracking-wide text-neutral-500 uppercase whitespace-nowrap">Nivel de riesgo</p>
-        <p className="font-semibold text-neutral-800 whitespace-nowrap">{label}</p>
+        <p className="font-semibold text-neutral-800 whitespace-nowrap" style={{ color }}>{label}</p>
       </div>
     </div>
   );
@@ -301,7 +297,7 @@ export default function AuditoriaSeguridadTGH() {
     <div className="max-w-2xl mx-auto p-5 space-y-6 overflow-x-hidden">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <h1 className="text-3xl font-semibold text-neutral-900">Auditoría de<br />seguridad</h1>
-        <RiskMeter hallazgos={hallazgos} />
+        <RiskMeter accesos={accesos} datosRgpd={datosRgpd} />
       </div>
 
       <StepProgress step={step} />

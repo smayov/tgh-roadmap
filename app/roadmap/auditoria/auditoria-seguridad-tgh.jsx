@@ -191,10 +191,6 @@ export default function AuditoriaSeguridadTGH() {
     numDispositivos: '',
     numEmpleadosConAcceso: '',
     incidentePrevio: '',
-    presupuestoOrientativo: '',
-    urgencia: '',
-    fechaVisita: '',
-    auditor: '',
   });
 
   // GESCOBIT
@@ -240,7 +236,7 @@ export default function AuditoriaSeguridadTGH() {
     lineas.push(`Sistemas marcados: ${alcance.sistemas.join(', ') || '—'}`);
     lineas.push(`Detalle sistemas: ${alcance.sistemasDetalle || '—'}`);
     lineas.push(`Dispositivos: ${alcance.numDispositivos} · Empleados con acceso: ${alcance.numEmpleadosConAcceso}`);
-    lineas.push(`Incidente previo: ${alcance.incidentePrevio || '—'} · Presupuesto orientativo: ${alcance.presupuestoOrientativo || '—'} · Urgencia: ${alcance.urgencia || '—'}`);
+    lineas.push(`Incidente previo: ${alcance.incidentePrevio || '—'}`);
     lineas.push('');
     lineas.push('-- Accesos y credenciales --');
     ACCESOS_ITEMS.forEach((i) => lineas.push(`${i.label} ${accesos[i.key] === 'si' ? 'Sí' : accesos[i.key] === 'no' ? 'No' : accesos[i.key] === 'no_se' ? 'No lo sé' : '(sin responder)'}`));
@@ -378,52 +374,7 @@ export default function AuditoriaSeguridadTGH() {
               label="¿Habéis tenido algún incidente de seguridad antes (hackeo, robo de datos, ransomware, suplantación)?"
               value={alcance.incidentePrevio}
               onChange={(v) => setAlcance({ ...alcance, incidentePrevio: v })}
-            />
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm text-neutral-600">Presupuesto orientativo</label>
-                <input
-                  placeholder="Ej. 500-1000€"
-                  className="mt-1 w-full min-w-0 border border-neutral-300 rounded-xl px-3 py-2"
-                  value={alcance.presupuestoOrientativo}
-                  onChange={(e) => setAlcance({ ...alcance, presupuestoOrientativo: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="text-sm text-neutral-600">Urgencia</label>
-                <select
-                  className="mt-1 w-full min-w-0 border border-neutral-300 rounded-xl px-3 py-2"
-                  value={alcance.urgencia}
-                  onChange={(e) => setAlcance({ ...alcance, urgencia: e.target.value })}
-                >
-                  <option value="">Selecciona</option>
-                  <option value="ya">Lo necesitamos ya</option>
-                  <option value="proximos_meses">Próximos meses</option>
-                  <option value="sin_prisa">Sin prisa</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm text-neutral-600">Fecha de la visita</label>
-                <input
-                  type="date"
-                  className="mt-1 w-full min-w-0 border border-neutral-300 rounded-xl px-3 py-2"
-                  value={alcance.fechaVisita}
-                  onChange={(e) => setAlcance({ ...alcance, fechaVisita: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="text-sm text-neutral-600">Auditor responsable</label>
-                <input
-                  className="mt-1 w-full min-w-0 border border-neutral-300 rounded-xl px-3 py-2"
-                  value={alcance.auditor}
-                  onChange={(e) => setAlcance({ ...alcance, auditor: e.target.value })}
-                />
-              </div>
-            </div>
+            />      
           </div>
         )}
 

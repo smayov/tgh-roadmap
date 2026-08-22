@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { supabase } from '../../supabaseClient';
-import dynamic from 'next/dynamic';
+import { descargarAuditoriaPDF } from '../../../lib/pdfAuditoria';
+
 
 
 
@@ -172,14 +173,7 @@ function YesNoRow({ label, value, onChange }) {
     </div>
   );
 }
-const DescargarPDFBoton = dynamic(() => import('./DescargarPDFBoton'), {
-  ssr: false,
-  loading: () => (
-    <button disabled className="px-4 py-3 rounded-xl border border-neutral-300 text-neutral-400 font-medium">
-      Cargando...
-    </button>
-  ),
-});
+
 export default function AuditoriaSeguridadTGH() {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -628,18 +622,19 @@ export default function AuditoriaSeguridadTGH() {
               />
             </div>
             
-            <div className="flex gap-3">
-             <button onClick={guardar} disabled={saving} className="flex-1 py-3 rounded-xl bg-neutral-900 text-white font-medium disabled:opacity-50">
+                      <div className="flex gap-3">
+              <button onClick={guardar} disabled={saving} className="flex-1 py-3 rounded-xl bg-neutral-900 text-white font-medium disabled:opacity-50">
                 {saving ? 'Guardando...' : 'Guardar auditoría'}
               </button>
               <button onClick={copiarResumen} className="px-4 py-3 rounded-xl border border-neutral-300 text-neutral-700 font-medium">
                 {copied ? 'Copiado ✓' : 'Copiar resumen'}
               </button>
-              <DescargarPDFBoton
-  datos={datos} alcance={alcance} accesos={accesos} datosRgpd={datosRgpd}
-  hallazgos={hallazgos} estimacion={estimacion} plan={plan} resumen={resumen}
-  ACCESOS_ITEMS={ACCESOS_ITEMS} DATOS_RGPD_ITEMS={DATOS_RGPD_ITEMS} totalEstimado={totalEstimado}
-/>
+              <button
+                onClick={() => descargarAuditoriaPDF({ datos, alcance, accesos, datosRgpd, hallazgos, estimacion, plan, resumen, ACCESOS_ITEMS, DATOS_RGPD_ITEMS, totalEstimado })}
+                className="px-4 py-3 rounded-xl border border-neutral-300 text-neutral-700 font-medium"
+              >
+                Descargar PDF
+              </button>
             </div>
             {saveError && (
               <p className="text-sm text-red-600">

@@ -442,8 +442,7 @@ export default function AuditoriaSeguridadTGH() {
         ))}
           </div>
         )}
-
-        {step === 3 && (
+         {step === 3 && (
           <div>
             <h2 className="text-lg font-medium text-neutral-800 mb-2">Datos, copias de seguridad y RGPD</h2>
             <p className="text-sm text-neutral-500 mb-4">Dónde y cómo se guardan los datos del negocio y de sus clientes.</p>
@@ -453,11 +452,11 @@ export default function AuditoriaSeguridadTGH() {
                 label={item.label}
                 value={datosRgpd[item.key]}
                 onChange={(v) => setDatosRgpd({ ...datosRgpd, [item.key]: v })}
+                riesgo={item.riesgo}
               />
             ))}
           </div>
-        )}
-
+         )}
         {step === 4 && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">

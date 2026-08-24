@@ -86,10 +86,10 @@ export function AuditoriaPDF({ datos, alcance, accesos, datosRgpd, hallazgos, es
           <Text style={styles.sectionTitle}>Datos del negocio</Text>
           {[
             ['Nombre', datos.nombre],
-            ['Tipo de establecimiento', datos.tipo],
+            ['Tipo de negocio', datos.tipo],
             ['Dirección', datos.direccion],
             ['Nº de empleados', datos.empleados],
-            ['Contacto', datos.contacto],
+            ['Persona de contacto', datos.contacto],
           ].map(([label, value]) => (
             <View style={styles.row} key={label}>
               <Text style={styles.label}>{label}</Text>

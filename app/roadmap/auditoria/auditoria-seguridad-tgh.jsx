@@ -254,7 +254,7 @@ export default function AuditoriaSeguridadTGH() {
     lineas.push(`AUDITORÍA DE SEGURIDAD — ${datos.nombre || 'sin nombre'}`);
     lineas.push('');
     lineas.push('-- Datos del negocio --');
-    lineas.push(`Nombre: ${datos.nombre}\nTipo: ${datos.tipo}\nDirección: ${datos.direccion}\nEmpleados: ${datos.empleados}\nContacto: ${datos.contacto}`);
+    lineas.push(`Nombre: ${datos.nombre}\nTipo de negocio: ${datos.tipo}\nDirección: ${datos.direccion}\nEmpleados: ${datos.empleados}\nPersona de contacto: ${datos.contacto}`);
     lineas.push('');
     lineas.push('-- Alcance / sistemas --');
     lineas.push(`Sistemas marcados: ${alcance.sistemas.join(', ') || '—'}`);

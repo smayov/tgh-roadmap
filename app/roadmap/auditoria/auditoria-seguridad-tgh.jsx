@@ -212,6 +212,14 @@ export default function AuditoriaSeguridadTGH() {
     setHallazgos((h) => [...h, { id: crypto.randomUUID(), area: '', descripcion: '', nivel: 'medio' }]);
   };
 
+  const updateHallazgo = (id, field, value) => {
+    setHallazgos((h) => h.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
+  };
+
+  const removeHallazgo = (id) => {
+    setHallazgos((h) => h.filter((item) => item.id !== id));
+  };
+
   const addEstimacionItem = () => {
     setEstimacion((e) => [
       ...e,
@@ -219,8 +227,24 @@ export default function AuditoriaSeguridadTGH() {
     ]);
   };
 
+  const updateEstimacionItem = (id, field, value) => {
+    setEstimacion((e) => e.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
+  };
+
+  const removeEstimacionItem = (id) => {
+    setEstimacion((e) => e.filter((item) => item.id !== id));
+  };
+
   const addPlanItem = () => {
     setPlan((p) => [...p, { id: crypto.randomUUID(), accion: '', prioridad: 'media', responsable: '' }]);
+  };
+
+  const updatePlanItem = (id, field, value) => {
+    setPlan((p) => p.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
+  };
+
+  const removePlanItem = (id) => {
+    setPlan((p) => p.filter((item) => item.id !== id));
   };
 
   const totalEstimado = estimacion.reduce((acc, e) => acc + (parseFloat(e.precio) || 0), 0);
@@ -315,10 +339,10 @@ export default function AuditoriaSeguridadTGH() {
             <h2 className="text-lg font-medium text-neutral-800">Datos del negocio</h2>
             {[
               ['nombre', 'Nombre del negocio'],
-              ['tipo', 'Tipo de establecimiento'],
+              ['tipo', 'Tipo de negocio'],
               ['direccion', 'Dirección'],
               ['empleados', 'Nº de empleados'],
-              ['contacto', 'Contacto'],
+              ['contacto', 'Persona de contacto'],
             ].map(([key, label]) => (
               <div key={key}>
                 <label className="text-sm text-neutral-600">{label}</label>
@@ -417,26 +441,36 @@ export default function AuditoriaSeguridadTGH() {
               </button>
             </div>
             {hallazgos.length === 0 && <p className="text-sm text-neutral-400">Aún no hay hallazgos registrados.</p>}
-            {hallazgos.map((h, i) => (
+            {hallazgos.map((h) => (
               <div key={h.id} className="border border-neutral-200 rounded-xl p-4 space-y-2">
-                <input
-                  placeholder="Área (ej. software de gestión, accesos, backups...)"
-                  className="w-full min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
-                  value={h.area}
-                  onChange={(e) => { const c = [...hallazgos]; c[i].area = e.target.value; setHallazgos(c); }}
-                />
+                <div className="flex items-start gap-2">
+                  <input
+                    placeholder="Área (ej. software de gestión, accesos, backups...)"
+                    className="flex-1 min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                    value={h.area}
+                    onChange={(e) => updateHallazgo(h.id, 'area', e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeHallazgo(h.id)}
+                    className="shrink-0 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50"
+                    aria-label="Eliminar hallazgo"
+                  >
+                    Eliminar
+                  </button>
+                </div>
                 <textarea
                   placeholder="Descripción del hallazgo"
                   className="w-full min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
                   value={h.descripcion}
-                  onChange={(e) => { const c = [...hallazgos]; c[i].descripcion = e.target.value; setHallazgos(c); }}
+                  onChange={(e) => updateHallazgo(h.id, 'descripcion', e.target.value)}
                 />
                 <div className="flex gap-2">
                   {['bajo', 'medio', 'alto'].map((n) => (
                     <button
                       key={n}
                       type="button"
-                      onClick={() => { const c = [...hallazgos]; c[i].nivel = n; setHallazgos(c); }}
+                      onClick={() => updateHallazgo(h.id, 'nivel', n)}
                       className={`px-3 py-1 rounded-full text-xs border capitalize ${
                         h.nivel === n ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-white text-neutral-500 border-neutral-200'
                       }`}
@@ -467,37 +501,47 @@ export default function AuditoriaSeguridadTGH() {
             )}
 
             {estimacion.length === 0 && <p className="text-sm text-neutral-400">Aún no hay partidas de estimación.</p>}
-            {estimacion.map((e, i) => (
+            {estimacion.map((e) => (
               <div key={e.id} className="border border-neutral-200 rounded-xl p-4 space-y-2">
-                <input
-                  placeholder="Hallazgo relacionado"
-                  className="w-full min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
-                  value={e.hallazgoRelacionado}
-                  onChange={(ev) => { const c = [...estimacion]; c[i].hallazgoRelacionado = ev.target.value; setEstimacion(c); }}
-                />
+                <div className="flex items-start gap-2">
+                  <input
+                    placeholder="Hallazgo relacionado"
+                    className="flex-1 min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                    value={e.hallazgoRelacionado}
+                    onChange={(ev) => updateEstimacionItem(e.id, 'hallazgoRelacionado', ev.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeEstimacionItem(e.id)}
+                    className="shrink-0 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50"
+                    aria-label="Eliminar partida"
+                  >
+                    Eliminar
+                  </button>
+                </div>
                 <input
                   placeholder="Solución propuesta (ej. gestor de contraseñas + 2FA en correo)"
                   className="w-full min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
                   value={e.solucionPropuesta}
-                  onChange={(ev) => { const c = [...estimacion]; c[i].solucionPropuesta = ev.target.value; setEstimacion(c); }}
+                  onChange={(ev) => updateEstimacionItem(e.id, 'solucionPropuesta', ev.target.value)}
                 />
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <input
                     placeholder="Horas"
                     className="w-full min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
                     value={e.horas}
-                    onChange={(ev) => { const c = [...estimacion]; c[i].horas = ev.target.value; setEstimacion(c); }}
+                    onChange={(ev) => updateEstimacionItem(e.id, 'horas', ev.target.value)}
                   />
                   <input
                     placeholder="Precio (€)"
                     className="w-full min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
                     value={e.precio}
-                    onChange={(ev) => { const c = [...estimacion]; c[i].precio = ev.target.value; setEstimacion(c); }}
+                    onChange={(ev) => updateEstimacionItem(e.id, 'precio', ev.target.value)}
                   />
                   <select
                     className="w-full min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
                     value={e.tipoPago}
-                    onChange={(ev) => { const c = [...estimacion]; c[i].tipoPago = ev.target.value; setEstimacion(c); }}
+                    onChange={(ev) => updateEstimacionItem(e.id, 'tipoPago', ev.target.value)}
                   >
                     <option value="unico">Pago único</option>
                     <option value="recurrente">Recurrente</option>
@@ -524,19 +568,29 @@ export default function AuditoriaSeguridadTGH() {
               </button>
             </div>
             {plan.length === 0 && <p className="text-sm text-neutral-400">Aún no hay acciones registradas.</p>}
-            {plan.map((p, i) => (
+            {plan.map((p) => (
               <div key={p.id} className="border border-neutral-200 rounded-xl p-4 space-y-2">
-                <input
-                  placeholder="Acción recomendada (ej. activar 2FA en el correo)"
-                  className="w-full min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
-                  value={p.accion}
-                  onChange={(e) => { const c = [...plan]; c[i].accion = e.target.value; setPlan(c); }}
-                />
+                <div className="flex items-start gap-2">
+                  <input
+                    placeholder="Acción recomendada (ej. activar 2FA en el correo)"
+                    className="flex-1 min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                    value={p.accion}
+                    onChange={(e) => updatePlanItem(p.id, 'accion', e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removePlanItem(p.id)}
+                    className="shrink-0 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50"
+                    aria-label="Eliminar acción"
+                  >
+                    Eliminar
+                  </button>
+                </div>
                 <input
                   placeholder="Responsable"
                   className="w-full min-w-0 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
                   value={p.responsable}
-                  onChange={(e) => { const c = [...plan]; c[i].responsable = e.target.value; setPlan(c); }}
+                  onChange={(e) => updatePlanItem(p.id, 'responsable', e.target.value)}
                 />
               </div>
             ))}

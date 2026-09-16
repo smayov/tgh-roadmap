@@ -159,17 +159,27 @@ export default function VerifactuPanel({ negocioNombre }) {
         </form>
       )}
 
+      <p style={styles.tableHint}>Pulsa una factura para ver su huella SHA-256 y su QR interno.</p>
       <div style={styles.table}>
         <div style={{ ...styles.row, ...styles.tableHead }}><span>Número</span><span>Cliente</span><span>Total</span><span>Estado</span></div>
         {cargando && <div style={styles.empty}>Cargando facturas...</div>}
         {!cargando && facturas.length === 0 && <div style={styles.empty}>Aún no has emitido ninguna factura.</div>}
         {!cargando && facturas.map((factura) => (
           <div key={factura.id}>
-            <button type="button" style={styles.invoiceRow} onClick={() => mostrarDetalle(factura)}>
+            <button
+              type="button"
+              style={styles.invoiceRow}
+              onClick={() => mostrarDetalle(factura)}
+              title="Ver detalle de la factura"
+              aria-expanded={facturaAbierta === factura.id}
+            >
               <span style={styles.muted}>{String(factura.numero).padStart(3, '0')}</span>
               <span>{factura.cliente?.nombre || 'Sin cliente'}</span>
               <strong>{dinero(factura.total)}</strong>
-              <span style={styles.badge}>{factura.aeat_estado === 'aceptada' ? 'Aceptada AEAT' : 'Emitida local'}</span>
+              <span style={styles.statusCell}>
+                <span style={styles.badge}>{factura.aeat_estado === 'aceptada' ? 'Aceptada AEAT' : 'Emitida local'}</span>
+                <span style={styles.detailLink}>Ver detalle →</span>
+              </span>
             </button>
             {facturaAbierta === factura.id && (
               <div style={styles.detail}>
@@ -223,6 +233,9 @@ const styles = {
   muted: { color: '#5C6B61' },
   badge: { justifySelf: 'start', background: '#E1F5EE', color: '#0F6E56', fontSize: 12, padding: '4px 8px', borderRadius: 6 },
   empty: { padding: 24, textAlign: 'center', color: '#5C6B61' },
+  tableHint: { color: '#B7C7BE', fontSize: 13, margin: '0 0 10px' },
+  statusCell: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 },
+  detailLink: { color: '#1A6A48', fontSize: 12, fontWeight: 700 },
   detail: { display: 'grid', gridTemplateColumns: '1fr 190px', gap: 18, alignItems: 'center', padding: '16px 18px', background: '#F6F5EF', borderBottom: '1px solid #E2E0D2' },
   detailLabel: { color: '#5C6B61', fontSize: 11, fontWeight: 700, marginBottom: 5, marginTop: 8 },
   hash: { display: 'block', color: '#0D3A28', fontSize: 12, lineHeight: 1.5, wordBreak: 'break-all' },

@@ -434,7 +434,10 @@ const pagar = async () => {
 
       <div className="tgh-wrap">
         <nav>
-          <div className="brand"><span className="mark">◆</span> Tu Gestor Hostelero</div>
+          <div className="brand">
+            <div className="brand-name"><span className="mark">◆</span> Tu Gestor Hostelero</div>
+            <img className="brand-logo" src="/logo-tgh.png" alt="Tu Gestor Hostelero" />
+          </div>
           <div className="navlinks">
             <a href="/panel">Mi panel</a>
             <a href="#config">Módulos</a>
@@ -566,14 +569,17 @@ const STYLES = `
 .tgh-wrap{max-width:1180px;margin:0 auto;padding:0 24px}
 
 .tgh-root nav{display:flex;align-items:center;justify-content:space-between;padding:22px 0}
-.tgh-root .brand{display:flex;align-items:center;gap:11px;font-family:'Bricolage Grotesque';font-weight:800;font-size:1.18rem}
+.tgh-root .brand{display:flex;flex-direction:column;align-items:flex-start;gap:7px;font-family:'Bricolage Grotesque';font-weight:800;font-size:1.18rem}
+.tgh-root .brand-name{display:flex;align-items:center;gap:11px}
+.tgh-root .brand-logo{display:block;width:145px;height:auto;max-height:46px;object-fit:contain;object-position:left center}
 .tgh-root .brand .mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--green-700),var(--green-500));display:grid;place-items:center;color:#fff;box-shadow:var(--shadow)}
 .tgh-root .navlinks{display:flex;gap:26px;font-weight:500;font-size:.95rem}
 .tgh-root .navlinks a{color:var(--muted);text-decoration:none;transition:color .2s}
 .tgh-root .navlinks a:hover{color:var(--green-700)}
 @media(max-width:720px){
   .tgh-root nav{flex-wrap:wrap;justify-content:center}
-  .tgh-root .brand{width:100%;justify-content:center;text-align:center;white-space:nowrap;font-size:1rem}
+  .tgh-root .brand{width:100%;align-items:center;text-align:center;white-space:nowrap;font-size:1rem}
+  .tgh-root .brand-logo{object-position:center}
   .tgh-root .navlinks{display:flex;flex-wrap:wrap;gap:14px;font-size:.8rem;justify-content:center;width:100%;margin-top:10px}
 }
 .tgh-root .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;padding:30px 0 10px}

@@ -115,12 +115,24 @@ export default function VerifactuPanel({ negocioNombre }) {
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>Facturas</h1>
-          <p style={styles.subtitle}>VeriFactu · {negocioNombre}</p>
+          <div style={styles.eyebrow}>VERIFACTU · CUMPLIMIENTO FISCAL</div>
+          <h1 style={styles.title}>Facturación y control fiscal</h1>
+          <p style={styles.subtitle}>{negocioNombre} · Emite, consulta y conserva la trazabilidad de tus facturas.</p>
         </div>
-        <button style={styles.primaryButton} onClick={() => { setMensaje(null); setMostrarFormulario(true); }}>
-          + Nueva factura
-        </button>
+        <div style={styles.headerActions}>
+          <span style={styles.statusPill}><span style={styles.statusDot} /> Motor activo</span>
+          <button style={styles.primaryButton} onClick={() => { setMensaje(null); setMostrarFormulario(true); }}>
+            + Nueva factura
+          </button>
+        </div>
+      </div>
+
+      <div style={styles.intro}>
+        <div>
+          <strong>Tu facturación, ordenada y trazable.</strong>
+          <span> Cada emisión queda numerada y enlazada mediante una huella SHA-256.</span>
+        </div>
+        <span style={styles.aeatStatus}>AEAT · Pendiente de conexión</span>
       </div>
 
       {mensaje && <div style={{ ...styles.message, ...(mensaje.tipo === 'error' ? styles.error : styles.success) }}>{mensaje.texto}</div>}
@@ -159,7 +171,13 @@ export default function VerifactuPanel({ negocioNombre }) {
         </form>
       )}
 
-      <p style={styles.tableHint}>Pulsa una factura para ver su huella SHA-256 y su QR interno.</p>
+      <div style={styles.historyHeader}>
+        <div>
+          <h2 style={styles.historyTitle}>Historial de facturas</h2>
+          <p style={styles.tableHint}>Pulsa una factura para ver su huella SHA-256 y su QR interno.</p>
+        </div>
+        <span style={styles.historyCount}>{facturas.length} {facturas.length === 1 ? 'factura' : 'facturas'}</span>
+      </div>
       <div style={styles.table}>
         <div style={{ ...styles.row, ...styles.tableHead }}><span>Número</span><span>Cliente</span><span>Total</span><span>Estado</span></div>
         {cargando && <div style={styles.empty}>Cargando facturas...</div>}
@@ -207,8 +225,14 @@ function Metric({ label, value }) {
 const styles = {
   container: { color: '#15271C' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 18, flexWrap: 'wrap' },
-  title: { margin: 0, fontSize: 28, fontWeight: 800, color: '#F4F7F1' },
+  eyebrow: { color: '#9DDB63', fontSize: 11, letterSpacing: '0.12em', fontWeight: 800, marginBottom: 8 },
+  title: { margin: 0, fontSize: 30, fontWeight: 800, color: '#F4F7F1' },
   subtitle: { margin: '4px 0 0', color: '#B7C7BE' },
+  headerActions: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
+  statusPill: { display: 'inline-flex', alignItems: 'center', gap: 7, color: '#D9E8DB', fontSize: 12, fontWeight: 700 },
+  statusDot: { width: 8, height: 8, borderRadius: '50%', background: '#9DDB63', boxShadow: '0 0 0 3px rgba(157,219,99,.16)' },
+  intro: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap', background: 'rgba(255,255,255,.08)', border: '1px solid rgba(183,199,190,.22)', borderRadius: 10, padding: '13px 16px', marginBottom: 18, color: '#D9E8DB', fontSize: 13 },
+  aeatStatus: { color: '#E8D29B', fontSize: 12, fontWeight: 700 },
   metrics: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 18 },
   metric: { background: '#F6F5EF', borderRadius: 8, padding: 14 },
   metricLabel: { display: 'block', color: '#5C6B61', fontSize: 13 },
@@ -236,6 +260,9 @@ const styles = {
   tableHint: { color: '#B7C7BE', fontSize: 13, margin: '0 0 10px' },
   statusCell: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 },
   detailLink: { color: '#1A6A48', fontSize: 12, fontWeight: 700 },
+  historyHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12, marginBottom: 10 },
+  historyTitle: { color: '#F4F7F1', fontSize: 18, margin: 0 },
+  historyCount: { color: '#B7C7BE', fontSize: 12 },
   detail: { display: 'grid', gridTemplateColumns: '1fr 190px', gap: 18, alignItems: 'center', padding: '16px 18px', background: '#F6F5EF', borderBottom: '1px solid #E2E0D2' },
   detailLabel: { color: '#5C6B61', fontSize: 11, fontWeight: 700, marginBottom: 5, marginTop: 8 },
   hash: { display: 'block', color: '#0D3A28', fontSize: 12, lineHeight: 1.5, wordBreak: 'break-all' },

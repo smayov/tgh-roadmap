@@ -152,8 +152,8 @@ function Metric({ label, value }) {
 const styles = {
   container: { color: '#15271C' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 18, flexWrap: 'wrap' },
-  title: { margin: 0, fontSize: 28, fontWeight: 800 },
-  subtitle: { margin: '4px 0 0', color: '#5C6B61' },
+  title: { margin: 0, fontSize: 28, fontWeight: 800, color: '#F4F7F1' },
+  subtitle: { margin: '4px 0 0', color: '#B7C7BE' },
   metrics: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 18 },
   metric: { background: '#F6F5EF', borderRadius: 8, padding: 14 },
   metricLabel: { display: 'block', color: '#5C6B61', fontSize: 13 },

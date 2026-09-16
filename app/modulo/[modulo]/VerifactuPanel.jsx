@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 import { supabase } from '../../supabaseClient';
 
 const lineaInicial = { descripcion: '', cantidad: '1', precio_unitario: '', tipo_iva: '10' };
@@ -17,6 +18,8 @@ export default function VerifactuPanel({ negocioNombre }) {
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState(null);
+  const [facturaAbierta, setFacturaAbierta] = useState(null);
+  const [qrFactura, setQrFactura] = useState(null);
 
   async function tokenActual() {
     const { data, error } = await supabase.auth.getSession();
@@ -73,6 +76,34 @@ export default function VerifactuPanel({ negocioNombre }) {
       setMensaje({ tipo: 'error', texto: error.message });
     } finally {
       setGuardando(false);
+    }
+  }
+
+  async function mostrarDetalle(factura) {
+    if (facturaAbierta === factura.id) {
+      setFacturaAbierta(null);
+      setQrFactura(null);
+      return;
+    }
+
+    setFacturaAbierta(factura.id);
+    setQrFactura(null);
+    const contenido = JSON.stringify({
+      tipo: 'TGH_VERIFACTU_INTERNO',
+      factura_id: factura.id,
+      numero: factura.numero,
+      huella: factura.huella,
+    });
+
+    try {
+      const dataUrl = await QRCode.toDataURL(contenido, {
+        width: 180,
+        margin: 1,
+        color: { dark: '#0D3A28', light: '#FFFFFF' },
+      });
+      setQrFactura(dataUrl);
+    } catch {
+      setMensaje({ tipo: 'error', texto: 'No se pudo generar el QR interno.' });
     }
   }
 
@@ -133,11 +164,25 @@ export default function VerifactuPanel({ negocioNombre }) {
         {cargando && <div style={styles.empty}>Cargando facturas...</div>}
         {!cargando && facturas.length === 0 && <div style={styles.empty}>Aún no has emitido ninguna factura.</div>}
         {!cargando && facturas.map((factura) => (
-          <div key={factura.id} style={styles.row}>
-            <span style={styles.muted}>{String(factura.numero).padStart(3, '0')}</span>
-            <span>{factura.cliente?.nombre || 'Sin cliente'}</span>
-            <strong>{dinero(factura.total)}</strong>
-            <span style={styles.badge}>{factura.aeat_estado === 'aceptada' ? 'Aceptada AEAT' : 'Emitida local'}</span>
+          <div key={factura.id}>
+            <button type="button" style={styles.invoiceRow} onClick={() => mostrarDetalle(factura)}>
+              <span style={styles.muted}>{String(factura.numero).padStart(3, '0')}</span>
+              <span>{factura.cliente?.nombre || 'Sin cliente'}</span>
+              <strong>{dinero(factura.total)}</strong>
+              <span style={styles.badge}>{factura.aeat_estado === 'aceptada' ? 'Aceptada AEAT' : 'Emitida local'}</span>
+            </button>
+            {facturaAbierta === factura.id && (
+              <div style={styles.detail}>
+                <div>
+                  <div style={styles.detailLabel}>HUELLA SHA-256</div>
+                  <code style={styles.hash}>{factura.huella}</code>
+                  <div style={styles.detailLabel}>HUELLA ANTERIOR</div>
+                  <code style={styles.hash}>{factura.huella_anterior || 'Primera factura de la cadena'}</code>
+                  <p style={styles.note}>Esta huella y este QR son internos. El QR oficial AEAT se añadirá al conectar el envío VeriFactu.</p>
+                </div>
+                {qrFactura && <img src={qrFactura} alt="QR interno de la factura" style={styles.qr} />}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -173,10 +218,15 @@ const styles = {
   note: { color: '#7A857D', fontSize: 13, margin: '12px 0 0' },
   table: { background: '#fff', border: '1px solid #E2E0D2', borderRadius: 10, overflow: 'hidden' },
   row: { display: 'grid', gridTemplateColumns: '90px 1fr 110px 130px', gap: 8, alignItems: 'center', padding: '13px 14px', borderBottom: '1px solid #EDEBE0', fontSize: 14 },
+  invoiceRow: { width: '100%', display: 'grid', gridTemplateColumns: '90px 1fr 110px 130px', gap: 8, alignItems: 'center', padding: '13px 14px', border: 0, borderBottom: '1px solid #EDEBE0', background: '#fff', color: '#15271C', textAlign: 'left', font: 'inherit', fontSize: 14, cursor: 'pointer' },
   tableHead: { color: '#9A9A90', fontSize: 12, fontWeight: 700 },
   muted: { color: '#5C6B61' },
   badge: { justifySelf: 'start', background: '#E1F5EE', color: '#0F6E56', fontSize: 12, padding: '4px 8px', borderRadius: 6 },
   empty: { padding: 24, textAlign: 'center', color: '#5C6B61' },
+  detail: { display: 'grid', gridTemplateColumns: '1fr 190px', gap: 18, alignItems: 'center', padding: '16px 18px', background: '#F6F5EF', borderBottom: '1px solid #E2E0D2' },
+  detailLabel: { color: '#5C6B61', fontSize: 11, fontWeight: 700, marginBottom: 5, marginTop: 8 },
+  hash: { display: 'block', color: '#0D3A28', fontSize: 12, lineHeight: 1.5, wordBreak: 'break-all' },
+  qr: { width: 180, height: 180, background: '#fff', padding: 5, borderRadius: 8 },
   message: { borderRadius: 8, padding: '10px 12px', marginBottom: 14, fontSize: 14 },
   success: { background: '#E1F5EE', color: '#0F6E56' },
   error: { background: '#FDECEC', color: '#A32D2D' },

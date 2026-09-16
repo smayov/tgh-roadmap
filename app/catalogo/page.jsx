@@ -571,7 +571,7 @@ const STYLES = `
 .tgh-root nav{display:flex;align-items:center;justify-content:space-between;padding:22px 0}
 .tgh-root .brand{display:flex;flex-direction:column;align-items:flex-start;gap:7px;font-family:'Bricolage Grotesque';font-weight:800;font-size:1.18rem}
 .tgh-root .brand-name{display:flex;align-items:center;gap:11px}
-.tgh-root .brand-logo{display:block;width:145px;height:auto;max-height:46px;object-fit:contain;object-position:left center}
+.tgh-root .brand-logo{display:block;width:220px;height:auto;max-height:64px;object-fit:contain;object-position:left center}
 .tgh-root .brand .mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--green-700),var(--green-500));display:grid;place-items:center;color:#fff;box-shadow:var(--shadow)}
 .tgh-root .navlinks{display:flex;gap:26px;font-weight:500;font-size:.95rem}
 .tgh-root .navlinks a{color:var(--muted);text-decoration:none;transition:color .2s}

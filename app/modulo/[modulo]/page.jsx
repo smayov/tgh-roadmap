@@ -12,6 +12,7 @@ import QRCode from 'qrcode';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { supabase } from '../../supabaseClient';
 import { generarRecomendaciones } from '../../../lib/recomendaciones';
+import VerifactuPanel from './VerifactuPanel';
 
 /* ============================================================
    PÁGINA DE MÓDULO
@@ -85,7 +86,7 @@ const INFO = {
   },
 };
 
-const MODULOS_FUNCIONALES = ['stock', 'empleados', 'alertas'];
+const MODULOS_FUNCIONALES = ['stock', 'empleados', 'alertas', 'verifactu'];
 
 export default function ModuloPage() {
   const router = useRouter();
@@ -169,6 +170,9 @@ export default function ModuloPage() {
           )}
           {moduloId === 'alertas' && (
             <PanelAlertasClima negocioId={negocioId} info={info} />
+          )}
+          {moduloId === 'verifactu' && (
+            <VerifactuPanel negocioNombre={negocioNombre} />
           )}
         </div>
       </div>

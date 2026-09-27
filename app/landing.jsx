@@ -19,7 +19,7 @@ h1,h2,.brand{font-family:'Bricolage Grotesque',sans-serif;letter-spacing:-.02em}
 header{padding:18px 0}
 nav{display:flex;align-items:center;gap:18px;flex-wrap:wrap;row-gap:12px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.12rem}
-.brand-logo{width:42px;height:42px;object-fit:cover;border-radius:8px;flex:none}
+.brand-logo{width:54px;height:54px;object-fit:contain;flex:none}
 .mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--green-700),var(--green-500));display:grid;place-items:center;color:#fff;font-size:.9rem}
 .links{display:flex;gap:22px;margin-left:14px}
 .links a{color:var(--muted);text-decoration:none;font-weight:600;font-size:.95rem}
@@ -73,7 +73,7 @@ footer{border-top:1px solid var(--line);padding:26px 0;color:var(--muted);font-s
       <div className="wrap">
         <header>
           <nav>
-            <div className="brand"><Image className="brand-logo" src="/logo-tgh_back.png" alt="" width={300} height={300} /> Tu Gestor Hostelero</div>
+            <div className="brand"><Image className="brand-logo" src="/logo-tgh.png" alt="Hostelería Madrid" width={300} height={300} /> Tu Gestor Hostelero</div>
             <div className="links">
               <a href="/planes">Módulos</a>
               <a href="/planes">Precios</a>

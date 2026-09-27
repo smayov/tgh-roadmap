@@ -1,7 +1,17 @@
 "use client";
+import { useEffect } from "react";
 import Image from "next/image";
 
 export default function Landing() {
+  useEffect(() => {
+    const isGreen = new URLSearchParams(window.location.search).get("tema") === "verde";
+    document.documentElement.dataset.theme = isGreen ? "green" : "red";
+
+    return () => {
+      delete document.documentElement.dataset.theme;
+    };
+  }, []);
+
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: `
@@ -11,15 +21,24 @@ export default function Landing() {
   --green-900:#A51F34; --green-700:#E52F43; --green-500:#F05B6C;
   --lime:#F8D9DE; --teal:#35353A; --muted:#64646B; --line:#E4E4E7;
 }
+:root[data-theme="green"]{
+  --bg:#F3F1E7; --card:#FFFFFF; --ink:#15271C;
+  --green-900:#0D3A28; --green-700:#1A6A48; --green-500:#2E9E6B;
+  --lime:#BCE05A; --teal:#199E94; --muted:#5C6B61; --line:#E2E0D2;
+}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Hanken Grotesk',sans-serif;color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased;line-height:1.55;overflow-x:hidden;
   background-image:radial-gradient(circle at 12% -5%,rgba(229,47,67,.08),transparent 45%),radial-gradient(circle at 95% 0%,rgba(32,33,36,.04),transparent 42%);}
+:root[data-theme="green"] body{background-image:radial-gradient(circle at 12% -5%,rgba(46,158,107,.12),transparent 45%),radial-gradient(circle at 95% 0%,rgba(25,158,148,.10),transparent 42%)}
 h1,h2,.brand{font-family:'Bricolage Grotesque',sans-serif;letter-spacing:-.02em}
 .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
 header{padding:18px 0}
 nav{display:flex;align-items:center;gap:18px;flex-wrap:wrap;row-gap:12px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.12rem}
 .brand-logo{width:54px;height:54px;object-fit:contain;flex:none}
+.brand-logo-green{display:none}
+:root[data-theme="green"] .brand-logo-red{display:none}
+:root[data-theme="green"] .brand-logo-green{display:block}
 .mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--green-700),var(--green-500));display:grid;place-items:center;color:#fff;font-size:.9rem}
 .links{display:flex;gap:22px;margin-left:14px}
 .links a{color:var(--muted);text-decoration:none;font-weight:600;font-size:.95rem}
@@ -30,6 +49,7 @@ nav{display:flex;align-items:center;gap:18px;flex-wrap:wrap;row-gap:12px}
 .btn-primary:hover{background:var(--green-900)}
 .btn-ghost{background:transparent;color:var(--green-700);border:1.5px solid var(--green-500);padding:9.5px 18px}
 .btn-ghost:hover{background:rgba(229,47,67,.08)}
+:root[data-theme="green"] .btn-ghost:hover{background:rgba(46,158,107,.08)}
 .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center;padding:64px 0 40px}
 .hero .pill{display:inline-block;background:var(--lime);color:var(--green-900);font-weight:700;font-size:.8rem;padding:6px 14px;border-radius:100px;margin-bottom:18px}
 .hero h1{font-size:2.9rem;line-height:1.08;font-weight:800;color:var(--green-900)}
@@ -44,6 +64,7 @@ nav{display:flex;align-items:center;gap:18px;flex-wrap:wrap;row-gap:12px}
 .pv-bar b{font-size:.92rem}
 .pv-ava{margin-left:auto;width:28px;height:28px;border-radius:50%;background:var(--teal);color:#fff;display:grid;place-items:center;font-weight:700;font-size:.72rem}
 .pv-health{display:flex;align-items:center;gap:12px;background:rgba(229,47,67,.1);border-radius:14px;padding:14px 16px;margin:16px 0}
+:root[data-theme="green"] .pv-health{background:rgba(46,158,107,.12)}
 .pv-health .dot{width:34px;height:34px;border-radius:50%;background:var(--green-500);color:#fff;display:grid;place-items:center;font-weight:800}
 .pv-health small{display:block;color:var(--green-700);font-weight:600;font-size:.78rem}
 .pv-health strong{color:var(--green-900);font-size:1rem}
@@ -73,7 +94,11 @@ footer{border-top:1px solid var(--line);padding:26px 0;color:var(--muted);font-s
       <div className="wrap">
         <header>
           <nav>
-            <div className="brand"><Image className="brand-logo" src="/logo-tgh.png" alt="Hostelería Madrid" width={300} height={300} /> Tu Gestor Hostelero</div>
+            <div className="brand">
+              <Image className="brand-logo brand-logo-red" src="/logo-tgh.png" alt="Hostelería Madrid" width={300} height={300} />
+              <Image className="brand-logo brand-logo-green" src="/logo-tgh_back.png" alt="Tu Gestor Hostelero" width={300} height={300} />
+              Tu Gestor Hostelero
+            </div>
             <div className="links">
               <a href="/planes">Módulos</a>
               <a href="/planes">Precios</a>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../supabaseClient';
+import { applyThemeVariant } from '../../lib/themeVariant';
 
 /* ============================================================
    PÁGINA PÚBLICA "MONTA TU SUITE" (calculadora, sin login)
@@ -239,6 +240,10 @@ export default function PlanesPage() {
   const [cycle, setCycle] = useState('month');
   const [selected, setSelected] = useState({});
   const [open, setOpen] = useState({});
+
+  useEffect(() => {
+    applyThemeVariant();
+  }, []);
   const [haySesion, setHaySesion] = useState(false);
 
   useEffect(() => {
@@ -393,6 +398,14 @@ const STYLES = `
   font-family:'Hanken Grotesk',sans-serif; color:var(--ink); line-height:1.55;
   -webkit-font-smoothing:antialiased; background:var(--bg);
   background-image:radial-gradient(circle at 12% -5%,rgba(229,47,67,.08),transparent 45%),radial-gradient(circle at 95% 8%,rgba(53,53,58,.04),transparent 42%);
+}
+:root[data-theme="green"] .tgh-root{
+  --bg:#F3F1E7; --paper:#FBFAF4; --card:#FFFFFF;
+  --ink:#15271C; --green-900:#0D3A28; --green-700:#1A6A48;
+  --green-500:#2E9E6B; --lime:#BCE05A; --teal:#199E94;
+  --muted:#5C6B61; --line:#E2E0D2;
+  --shadow:0 18px 50px -22px rgba(13,58,40,.45);
+  background-image:radial-gradient(circle at 12% -5%,rgba(46,158,107,.10),transparent 45%),radial-gradient(circle at 95% 8%,rgba(25,158,148,.10),transparent 42%);
 }
 .tgh-root *{box-sizing:border-box;margin:0;padding:0}
 .tgh-root h1,.tgh-root h2,.tgh-root h3{font-family:'Bricolage Grotesque',sans-serif;letter-spacing:-.02em;line-height:1.05}

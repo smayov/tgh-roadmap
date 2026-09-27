@@ -1,15 +1,11 @@
 "use client";
 import { useEffect } from "react";
 import Image from "next/image";
+import { applyThemeVariant } from "../lib/themeVariant";
 
 export default function Landing() {
   useEffect(() => {
-    const isGreen = new URLSearchParams(window.location.search).get("tema") === "verde";
-    document.documentElement.dataset.theme = isGreen ? "green" : "red";
-
-    return () => {
-      delete document.documentElement.dataset.theme;
-    };
+    applyThemeVariant();
   }, []);
 
   return (

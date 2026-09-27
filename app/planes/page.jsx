@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { supabase } from '../supabaseClient';
 
 /* ============================================================
@@ -274,7 +275,7 @@ export default function PlanesPage() {
       <div className="tgh-wrap">
         <nav>
           <div className="brand"><span className="mark">◆</span> Tu Gestor Hostelero</div>
-          <div className="navlinks"><a href="/">Inicio</a><a href="#config">Módulos</a><a href="#config">Precios</a><a href="/acceso">Acceder</a></div>
+          <div className="navlinks"><Link href="/">Inicio</Link><a href="#config">Módulos</a><a href="#config">Precios</a><a href="/acceso">Acceder</a></div>
         </nav>
 
         <section className="hero">
@@ -384,14 +385,14 @@ const STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap');
 
 .tgh-root{
-  --bg:#F3F1E7; --paper:#FBFAF4; --card:#FFFFFF;
-  --ink:#15271C; --green-900:#0D3A28; --green-700:#1A6A48;
-  --green-500:#2E9E6B; --lime:#BCE05A; --teal:#199E94;
-  --muted:#5C6B61; --line:#E2E0D2;
-  --shadow:0 18px 50px -22px rgba(13,58,40,.45);
+  --bg:#F7F7F8; --paper:#F1F1F3; --card:#FFFFFF;
+  --ink:#202124; --green-900:#A51F34; --green-700:#E52F43;
+  --green-500:#F05B6C; --lime:#F8D9DE; --teal:#35353A;
+  --muted:#64646B; --line:#E4E4E7;
+  --shadow:0 18px 50px -22px rgba(32,33,36,.2);
   font-family:'Hanken Grotesk',sans-serif; color:var(--ink); line-height:1.55;
   -webkit-font-smoothing:antialiased; background:var(--bg);
-  background-image:radial-gradient(circle at 12% -5%,rgba(46,158,107,.10),transparent 45%),radial-gradient(circle at 95% 8%,rgba(25,158,148,.10),transparent 42%);
+  background-image:radial-gradient(circle at 12% -5%,rgba(229,47,67,.08),transparent 45%),radial-gradient(circle at 95% 8%,rgba(53,53,58,.04),transparent 42%);
 }
 .tgh-root *{box-sizing:border-box;margin:0;padding:0}
 .tgh-root h1,.tgh-root h2,.tgh-root h3{font-family:'Bricolage Grotesque',sans-serif;letter-spacing:-.02em;line-height:1.05}
